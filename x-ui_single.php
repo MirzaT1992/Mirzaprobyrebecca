@@ -2,204 +2,159 @@
 require_once 'config.php';
 require_once 'request.php';
 ini_set('error_log', 'error_log');
-function panel_login_cookie($code_panel)
+
+function bearer_headers_xui($namepanel)
 {
-    $panel = select("marzban_panel", "*", "code_panel", $code_panel, "select");
-    $curl = curl_init();
-    curl_setopt_array($curl, array(
-        CURLOPT_URL => $panel['url_panel'] . '/login',
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_ENCODING => '',
-        CURLOPT_MAXREDIRS => 10,
-        CURLOPT_TIMEOUT_MS => 10000,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-        CURLOPT_CUSTOMREQUEST => 'POST',
-        CURLOPT_POSTFIELDS => "username=" . urlencode($panel['username_panel']) . "&password=" . urlencode($panel['password_panel']),
-        CURLOPT_COOKIEJAR => 'cookie.txt',
-    ));
-    $response = curl_exec($curl);
-    if (curl_error($curl)) {
-        return json_encode(array(
-            'success' => false,
-            'msg' => curl_error($curl)
-        ));
-    }
-    return $response;
-}
-function login($code_panel, $verify = true)
-{
-    $panel = select("marzban_panel", "*", "code_panel", $code_panel, "select");
-    if ($panel['datelogin'] != null && $verify) {
-        $date = json_decode($panel['datelogin'], true);
-        if (isset($date['time'])) {
-            $timecurrent = time();
-            $start_date = time() - strtotime($date['time']);
-            if ($start_date <= 3000) {
-                file_put_contents('cookie.txt', $date['access_token']);
-                return;
-            }
-        }
-    }
-    $response = panel_login_cookie($panel['code_panel']);
-    $time = date('Y/m/d H:i:s');
-    $data = json_encode(array(
-        'time' => $time,
-        'access_token' => file_get_contents('cookie.txt')
-    ));
-    update("marzban_panel", "datelogin", $data, 'name_panel', $panel['name_panel']);
-    if (!is_string($response))
-        return array('success' => false);
-    return json_decode($response, true);
+    $panel = select("marzban_panel", "*", "name_panel", $namepanel, "select");
+    return array(
+        'Accept: application/json',
+        'Content-Type: application/json',
+        'Authorization: Bearer ' . $panel['password_panel'],
+    );
 }
 
 function get_clinets($username, $namepanel)
 {
-    $marzban_list_get = select("marzban_panel", "*", "name_panel", $namepanel, "select");
-    login($marzban_list_get['code_panel']);
-    $url = $marzban_list_get['url_panel'] . "/panel/api/inbounds/getClientTraffics/$username";
-    $headers = array(
-        'Accept: application/json',
-        'Content-Type: application/json',
-    );
-    $req = new CurlRequest($url);
-    $req->setHeaders($headers);
-    $req->setCookie('cookie.txt');
-    $response = $req->get();
+    $panel   = select("marzban_panel", "*", "name_panel", $namepanel, "select");
+    $headers = bearer_headers_xui($namepanel);
 
-    if (isset($response['body'])) {
-        $decodedBody = json_decode($response['body'], true);
-        if (json_last_error() === JSON_ERROR_NONE && is_array($decodedBody)) {
-            if (isset($decodedBody['success']) && $decodedBody['success'] === false) {
-                $response['error'] = $decodedBody['msg'] ?? 'Unknown panel error';
-            }
+    // 1) Fetch client config: enable, totalGB, expiryTime, subId, inboundIds
+    $url_get = $panel['url_panel'] . "/panel/api/clients/get/" . urlencode($username);
+    $req_get = new CurlRequest($url_get);
+    $req_get->setHeaders($headers);
+    $resp_get = $req_get->get();
+
+    if (!empty($resp_get['error'])) {
+        return $resp_get;
+    }
+    if ($resp_get['status'] != 200) {
+        return $resp_get;
+    }
+
+    $data_get = json_decode($resp_get['body'], true);
+    if (!$data_get || !isset($data_get['success'])) {
+        return array('status' => 500, 'body' => $resp_get['body'], 'error' => 'Invalid response from panel');
+    }
+    if (!$data_get['success'] || empty($data_get['obj'])) {
+        return array('status' => 200, 'body' => json_encode(array('success' => false, 'msg' => $data_get['msg'] ?? 'User not found')), 'error' => '');
+    }
+
+    // 2) Fetch traffic counters: up, down
+    $url_traffic = $panel['url_panel'] . "/panel/api/clients/traffic/" . urlencode($username);
+    $req_traffic = new CurlRequest($url_traffic);
+    $req_traffic->setHeaders($headers);
+    $resp_traffic = $req_traffic->get();
+
+    $up   = 0;
+    $down = 0;
+    if (empty($resp_traffic['error']) && $resp_traffic['status'] == 200) {
+        $data_traffic = json_decode($resp_traffic['body'], true);
+        if ($data_traffic && !empty($data_traffic['obj'])) {
+            $up   = $data_traffic['obj']['up']   ?? 0;
+            $down = $data_traffic['obj']['down'] ?? 0;
         }
     }
 
-    if (!empty($response['error'])) {
-        error_log(json_encode($response));
-    }
+    // 3) Merge into a single obj compatible with panels.php expectations
+    $c      = $data_get['obj'];
+    $merged = array(
+        'email'      => $c['email']      ?? $username,
+        'expiryTime' => $c['expiryTime'] ?? 0,
+        'enable'     => $c['enable']     ?? true,
+        'total'      => $c['totalGB']    ?? 0,
+        'up'         => $up,
+        'down'       => $down,
+        'subId'      => $c['subId']      ?? '',
+        'lastOnline' => 0,
+        'inboundId'  => isset($c['inboundIds'][0]) ? intval($c['inboundIds'][0]) : 0,
+        'tgId'       => $c['tgId']       ?? 0,
+        'limitIp'    => $c['limitIp']    ?? 0,
+    );
 
-    if (is_file('cookie.txt')) {
-        @unlink('cookie.txt');
-    }
-
-    return $response;
+    return array(
+        'status' => 200,
+        'body'   => json_encode(array('success' => true, 'obj' => $merged)),
+        'error'  => '',
+    );
 }
+
 function addClient($namepanel, $usernameac, $Expire, $Total, $Uuid, $Flow, $subid, $inboundid, $name_product, $note = "")
 {
-    $marzban_list_get = select("marzban_panel", "*", "name_panel", $namepanel, "select");
-    login($marzban_list_get['code_panel']);
+    if (!isset($usernameac)) {
+        return array('status' => 500, 'msg' => 'username is null');
+    }
+
+    $panel = select("marzban_panel", "*", "name_panel", $namepanel, "select");
+
+    // Determine expiry in milliseconds (on_hold = negative value)
     if ($name_product == "usertest") {
-        if ($marzban_list_get['on_hold_test'] == "1") {
-            if ($Expire == 0) {
-                $timeservice = 0;
-            } else {
-                $timelast = $Expire - time();
-                $timeservice = -intval(($timelast / 86400) * 86400000);
-            }
+        $use_onhold = ($panel['on_hold_test'] == "1");
+    } else {
+        $use_onhold = ($panel['conecton'] == "onconecton");
+    }
+
+    if ($use_onhold) {
+        if ($Expire == 0) {
+            $timeservice = 0;
         } else {
-            $timeservice = $Expire * 1000;
+            $timelast    = $Expire - time();
+            $timeservice = -intval(($timelast / 86400) * 86400000);
         }
     } else {
-        if ($marzban_list_get['conecton'] == "onconecton") {
-            if ($Expire == 0) {
-                $timeservice = 0;
-            } else {
-                $timelast = $Expire - time();
-                $timeservice = -intval(($timelast / 86400) * 86400000);
-            }
-        } else {
-            $timeservice = $Expire * 1000;
-        }
+        $timeservice = $Expire * 1000;
     }
-    $config = array(
-        "id" => intval($inboundid),
-        'settings' => json_encode(array(
-            'clients' => array(
-                array(
-                    "id" => $Uuid,
-                    "flow" => $Flow,
-                    "email" => $usernameac,
-                    "totalGB" => $Total,
-                    "expiryTime" => $timeservice,
-                    "enable" => true,
-                    "tgId" => "",
-                    "subId" => $subid,
-                    "reset" => 0,
-                    "comment" => $note
-                )
-            ),
-            'decryption' => 'none',
-            'fallbacks' => array(),
-        ))
+
+    // Accept single int, "3", or comma-separated "3,5,7"
+    if (is_string($inboundid) && strpos($inboundid, ',') !== false) {
+        $inboundIds = array_map('intval', explode(',', $inboundid));
+    } else {
+        $inboundIds = [intval($inboundid)];
+    }
+
+    $payload = array(
+        "client" => array(
+            "email"      => $usernameac,
+            "totalGB"    => intval($Total),
+            "expiryTime" => $timeservice,
+            "tgId"       => 0,
+            "limitIp"    => 0,
+            "enable"     => true,
+            "subId"      => $subid,
+            "comment"    => $note,
+        ),
+        "inboundIds" => $inboundIds,
     );
-    if (!isset($usernameac))
-        return array(
-            'status' => 500,
-            'msg' => 'username is null'
-        );
-    $configpanel = json_encode($config, true);
-    $url = $marzban_list_get['url_panel'] . '/panel/api/inbounds/addClient';
-    $headers = array(
-        'Accept: application/json',
-        'Content-Type: application/json',
-    );
+
+    $url = $panel['url_panel'] . '/panel/api/clients/add';
     $req = new CurlRequest($url);
-    $req->setHeaders($headers);
-    $req->setCookie('cookie.txt');
-    $response = $req->post($configpanel);
-    unlink('cookie.txt');
-    return $response;
+    $req->setHeaders(bearer_headers_xui($namepanel));
+    return $req->post(json_encode($payload));
 }
-function updateClient($namepanel, $uuid, array $config)
+
+// $payload is a flat array: email, totalGB, expiryTime, enable, subId, tgId, limitIp
+function updateClient($namepanel, $email, array $payload)
 {
-    $marzban_list_get = select("marzban_panel", "*", "name_panel", $namepanel, "select");
-    login($marzban_list_get['code_panel']);
-    $configpanel = json_encode($config, true);
-    $url = $marzban_list_get['url_panel'] . '/panel/api/inbounds/updateClient/' . $uuid;
-    $headers = array(
-        'Accept: application/json',
-        'Content-Type: application/json',
-    );
-    $req = new CurlRequest($url);
-    $req->setHeaders($headers);
-    $req->setCookie('cookie.txt');
-    $response = $req->post($configpanel);
-    unlink('cookie.txt');
-    return $response;
+    $panel = select("marzban_panel", "*", "name_panel", $namepanel, "select");
+    $url   = $panel['url_panel'] . '/panel/api/clients/update/' . urlencode($email);
+    $req   = new CurlRequest($url);
+    $req->setHeaders(bearer_headers_xui($namepanel));
+    return $req->post(json_encode($payload));
 }
+
 function ResetUserDataUsagex_uisin($usernamepanel, $namepanel)
 {
-    $data_user = get_clinets($usernamepanel, $namepanel);
-    $data_user = json_decode($data_user['body'], true)['obj'];
-    $marzban_list_get = select("marzban_panel", "*", "name_panel", $namepanel, "select");
-    login($marzban_list_get['code_panel']);
-    $url = $marzban_list_get['url_panel'] . "/panel/api/inbounds/{$data_user['inboundId']}/resetClientTraffic/" . $usernamepanel;
-    $headers = array(
-        'Accept: application/json',
-        'Content-Type: application/json',
-    );
-    $req = new CurlRequest($url);
-    $req->setHeaders($headers);
-    $req->setCookie('cookie.txt');
-    $response = $req->post(array());
-    unlink('cookie.txt');
-    return $response;
+    $panel = select("marzban_panel", "*", "name_panel", $namepanel, "select");
+    $url   = $panel['url_panel'] . "/panel/api/clients/resetTraffic/" . urlencode($usernamepanel);
+    $req   = new CurlRequest($url);
+    $req->setHeaders(bearer_headers_xui($namepanel));
+    return $req->post('{}');
 }
+
 function removeClient($location, $username)
 {
-    $marzban_list_get = select("marzban_panel", "*", "name_panel", $location, "select");
-    login($marzban_list_get['code_panel']);
-    $url = $marzban_list_get['url_panel'] . "/panel/api/inbounds/{$marzban_list_get['inboundid']}/delClientByEmail/" . $username;
-    $headers = array(
-        'Accept: application/json',
-        'Content-Type: application/json',
-    );
-    $req = new CurlRequest($url);
-    $req->setHeaders($headers);
-    $req->setCookie('cookie.txt');
-    $response = $req->post(array());
-    unlink('cookie.txt');
-    return $response;
+    $panel = select("marzban_panel", "*", "name_panel", $location, "select");
+    $url   = $panel['url_panel'] . "/panel/api/clients/del/" . urlencode($username) . "?keepTraffic=0";
+    $req   = new CurlRequest($url);
+    $req->setHeaders(bearer_headers_xui($location));
+    return $req->post('{}');
 }

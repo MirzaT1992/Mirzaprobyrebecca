@@ -7,14 +7,14 @@ A Powerful Bot for Selling VPN Services with Auto Configuration Build.
     <a href="https://t.me/mirzapanel" target="_blank">
         <img src="https://img.shields.io/badge/Telegram-Group-blue?style=flat-square&logo=telegram" alt="Telegram Group"/>
     </a>
-    <a href="https://github.com/mahdiMGF2/mirzabot" target="_blank">
-        <img src="https://img.shields.io/github/stars/mahdiMGF2/mirzabot?style=social" alt="GitHub Stars"/>
+    <a href="https://github.com/Samr002/mirzabot" target="_blank">
+        <img src="https://img.shields.io/github/stars/Samr002/mirzabot?style=social" alt="GitHub Stars"/>
     </a>
-    <a href="https://img.shields.io/github/forks/mahdiMGF2/mirzabot?style=flat-square" target="_blank">
-        <img src="https://img.shields.io/github/forks/mahdiMGF2/botmirzapanel?style=flat-square" alt="GitHub Forks"/>
+    <a href="https://github.com/Samr002/mirzabot" target="_blank">
+        <img src="https://img.shields.io/github/forks/Samr002/mirzabot?style=flat-square" alt="GitHub Forks"/>
     </a>
-    <a href="https://github.com/mahdiMGF2/botmirzapanel/issues" target="_blank">
-        <img src="https://img.shields.io/github/issues/mahdiMGF2/mirzabot?style=flat-square" alt="GitHub Issues"/>
+    <a href="https://github.com/Samr002/mirzabot/issues" target="_blank">
+        <img src="https://img.shields.io/github/issues/Samr002/mirzabot?style=flat-square" alt="GitHub Issues"/>
     </a>
 </p>
 
@@ -41,7 +41,7 @@ Mirza Panel comes in two versions:
 1. **Free Version** 🆓: Offers basic functionalities to get started with VPN sales.  
 2. **Subscription Version** 💎: Provides advanced features for businesses looking for more customization, detailed analytics, and enhanced management options.  
 
-Whether you’re offering trial accounts or managing large-scale VPN services, this bot covers everything you need to run a successful VPN business.
+Whether you're offering trial accounts or managing large-scale VPN services, this bot covers everything you need to run a successful VPN business.
 
 ---
 
@@ -101,7 +101,7 @@ Ensure you have the following before installation:
 Run the following command in your server terminal:
 
 ```bash
-curl -o install.sh -L https://raw.githubusercontent.com/mahdiMGF2/mirzabot/main/install.sh && bash install.sh
+curl -o install.sh -L https://raw.githubusercontent.com/Samr002/mirzabot/main/install.sh && bash install.sh
 ```
 
 When prompted, **select option 1** to complete the installation.
@@ -114,7 +114,7 @@ When prompted, **select option 1** to complete the installation.
 To update your bot to the latest version, use the following command:
 
 ```bash
-curl -o install.sh -L https://raw.githubusercontent.com/mahdiMGF2/botmirzapanel/main/install.sh && bash install.sh
+curl -o install.sh -L https://raw.githubusercontent.com/Samr002/mirzabot/main/install.sh && bash install.sh
 ```
 When prompted, **select option update** to remove the bot.
 ---
@@ -124,7 +124,7 @@ When prompted, **select option update** to remove the bot.
 If you want to completely remove the bot from your server, run the following command:
 
 ```bash
-curl -o install.sh -L https://raw.githubusercontent.com/mahdiMGF2/botmirzapanel/main/install.sh && bash install.sh
+curl -o install.sh -L https://raw.githubusercontent.com/Samr002/mirzabot/main/install.sh && bash install.sh
 ```
 
 When prompted, **select option 3** to remove the bot.
@@ -141,4 +141,4 @@ Your support ensures continued updates and improvements for this project. Thank 
 
 ### Contributors
 
-![Contributors](https://contrib.rocks/image?repo=mahdiMGF2/mirzabot)
+![Contributors](https://contrib.rocks/image?repo=Samr002/mirzabot)

@@ -935,17 +935,8 @@ class ManagePanel
         } elseif ($Get_Data_Panel['type'] == "x-ui_single") {
             $subId = bin2hex(random_bytes(8));
             $config = array(
-                'settings' => json_encode(
-                    array(
-                        'clients' => array(
-                            array(
-                                "id" => generateUUID(),
-                                "enable" => true,
-                                "subId" => $subId,
-                            )
-                        ),
-                    )
-                )
+                "enable" => true,
+                "subId"  => $subId,
             );
             $updateinbound = $ManagePanel->Modifyuser($username, $Get_Data_Panel['name_panel'], $config);
             if (!$updateinbound['status']) {
@@ -1330,29 +1321,18 @@ class ManagePanel
                     'msg' => "User not found"
                 );
             }
-            $clients = $clients['obj'];
-            $configs = array(
-                'id' => intval($clients['inboundId']),
-                'settings' => json_encode(
-                    array(
-                        'clients' => array(
-                            array(
-                                "id" => $clients['uuid'],
-                                "flow" => "",
-                                "email" => $clients['email'],
-                                "totalGB" => $clients['total'],
-                                "expiryTime" => $clients['expiryTime'],
-                                "enable" => true,
-                                "subId" => $clients['subId'],
-                            )
-                        ),
-                        'decryption' => 'none',
-                        'fallbacks' => array(),
-                    )
-                ),
-            );
-            $configs['settings'] = json_encode(array_replace_recursive(json_decode($configs['settings'], true), json_decode($config['settings'], true)));
-            $modify = updateClient($Get_Data_Panel['name_panel'], $clients['uuid'], $configs);
+            $c = $clients['obj'];
+            // Build flat payload with current values, then merge caller's changes
+            $update_payload = array_merge(array(
+                'email'      => $c['email'],
+                'totalGB'    => $c['total'],
+                'expiryTime' => $c['expiryTime'],
+                'tgId'       => $c['tgId']    ?? 0,
+                'limitIp'    => $c['limitIp'] ?? 0,
+                'enable'     => $c['enable']  ?? true,
+                'subId'      => $c['subId']   ?? '',
+            ), $config);
+            $modify = updateClient($Get_Data_Panel['name_panel'], $username, $update_payload);
             if (!empty($modify['error'])) {
                 return array(
                     'status' => false,
@@ -1542,20 +1522,8 @@ class ManagePanel
                 'msg' => null
             );
         } elseif ($Get_Data_Panel['type'] == "x-ui_single") {
-            if ($DataUserOut['status'] == "active") {
-                $status = false;
-            } else {
-                $status = true;
-            }
-            $configs = array(
-                'settings' => json_encode(array(
-                    'clients' => array(
-                        array(
-                            "enable" => $status,
-                        )
-                    ),
-                )),
-            );
+            $status = ($DataUserOut['status'] == "active") ? false : true;
+            $configs = array("enable" => $status);
             $ManagePanel->Modifyuser($username, $name_panel, $configs);
             $Output = array(
                 'status' => 'successful',
@@ -1836,19 +1804,9 @@ class ManagePanel
             );
         } elseif ($panel['type'] == "x-ui_single") {
             $data = array(
-                'settings' => json_encode(
-                    array(
-                        'clients' => array(
-                            array(
-                                "totalGB" => $data_limit_new,
-                                "expiryTime" => $time_new * 1000,
-                                "enable" => true,
-                            )
-                        ),
-                        'decryption' => 'none',
-                        'fallbacks' => array(),
-                    )
-                ),
+                "totalGB"    => $data_limit_new,
+                "expiryTime" => $time_new * 1000,
+                "enable"     => true,
             );
         } elseif ($panel['type'] == "alireza_single") {
             $data = array(
@@ -1981,17 +1939,7 @@ class ManagePanel
                 'data_limit' => $new_limit,
             );
         } elseif ($panel['type'] == "x-ui_single") {
-            $data = array(
-                'settings' => json_encode(
-                    array(
-                        'clients' => array(
-                            array(
-                                "totalGB" => $new_limit,
-                            )
-                        ),
-                    )
-                ),
-            );
+            $data = array("totalGB" => $new_limit);
         } elseif ($panel['type'] == "alireza_single") {
             $data = array(
                 'id' => intval($inbound_id),
@@ -2098,17 +2046,7 @@ class ManagePanel
             );
         } elseif ($panel['type'] == "x-ui_single") {
             $new_limit = $new_limit * 1000;
-            $data = array(
-                'settings' => json_encode(
-                    array(
-                        'clients' => array(
-                            array(
-                                "expiryTime" => $new_limit,
-                            )
-                        ),
-                    )
-                ),
-            );
+            $data = array("expiryTime" => $new_limit);
         } elseif ($panel['type'] == "alireza_single") {
             $new_limit = $new_limit * 1000;
             $data = array(

@@ -3497,14 +3497,24 @@ elseif ($datain == "systemsms") {
             sendmessage($from_id, $text_marzban, $optionMarzban, 'HTML');
         }
     } elseif ($marzban_list_get['type'] == "x-ui_single") {
-        $x_ui_check_connect = login($marzban_list_get['code_panel'], false);
-        if ($x_ui_check_connect['success']) {
+        // Test Bearer token via a lightweight authenticated endpoint
+        $test_headers = array(
+            'Accept: application/json',
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $marzban_list_get['password_panel'],
+        );
+        $test_url = $marzban_list_get['url_panel'] . '/panel/api/clients/list';
+        $req_test = new CurlRequest($test_url);
+        $req_test->setHeaders($test_headers);
+        $test_resp = $req_test->get();
+        $x_ui_check_connect = (!empty($test_resp['body'])) ? json_decode($test_resp['body'], true) : null;
+        if (!empty($x_ui_check_connect['success'])) {
             sendmessage($from_id, $textbotlang['Admin']['managepanel']['connectXUi'], $optionX_ui_single, 'HTML');
-        } elseif ($x_ui_check_connect['msg'] == "Invalid username or password.") {
+        } elseif (isset($test_resp['status']) && in_array($test_resp['status'], [401, 403])) {
             $text_marzban = $textbotlang['Admin']['adminphp']['err_invalid_panel_user'];
             sendmessage($from_id, $text_marzban, $optionX_ui_single, 'HTML');
         } else {
-            $text_marzban = $textbotlang['Admin']['managepanel']['errorStatusPanel'] . sprintf($textbotlang['Admin']['adminphp']['err_error_5'], $x_ui_check_connect['msg']);
+            $text_marzban = $textbotlang['Admin']['managepanel']['errorStatusPanel'] . json_encode($x_ui_check_connect);
             sendmessage($from_id, $text_marzban, $optionX_ui_single, 'HTML');
         }
     } elseif ($marzban_list_get['type'] == "alireza_single") {

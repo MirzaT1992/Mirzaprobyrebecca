@@ -111,7 +111,7 @@ _link_mirza() {
 function self_update_script() {
     local MASTER_PATH="/root/install.sh"
     local BIN_LINK="/usr/local/bin/mirza"
-    local URL="https://raw.githubusercontent.com/mahdiMGF2/mirzabot/main/install.sh"
+    local URL="https://raw.githubusercontent.com/Samr002/mirzabot/main/install.sh"
     local TEMP_FILE="/tmp/mirzabot_update.sh"
 
     # Make sure DNS works before reaching GitHub
@@ -177,7 +177,7 @@ self_update_script "$@"
 # ── Repo / paths ─────────────────────────────────────────────
 BOT_DIR_DEFAULT="/var/www/html/mirzaprobotconfig"
 CONFIG_FILE_DEFAULT="$BOT_DIR_DEFAULT/config.php"
-GIT_REPO="mahdiMGF2/mirzabot"
+GIT_REPO="Samr002/mirzabot"
 LATEST_CACHE="/tmp/.mirza_latest_version"
 IP_CACHE="/tmp/.mirza_server_ip"
 
@@ -1562,7 +1562,7 @@ function migrate_to_pro() {
     NEW_BOT_DIR="/var/www/html/mirzaprobotconfig"
     rm -rf "$OLD_BOT_DIR"
     mkdir -p "$NEW_BOT_DIR"
-    ZIP_URL="https://github.com/mahdiMGF2/mirzabot/archive/refs/heads/main.zip"
+    ZIP_URL="https://github.com/Samr002/mirzabot/archive/refs/heads/main.zip"
     TEMP_DIR="/tmp/mirzabot_mig"
     mkdir -p "$TEMP_DIR"
     run_step "Downloading Mirza source" "wget -q -O '$TEMP_DIR/bot.zip' '$ZIP_URL'" \
