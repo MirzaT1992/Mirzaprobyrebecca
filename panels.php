@@ -166,11 +166,7 @@ class ManagePanel
                     $Output['status'] = 'Unsuccessful';
                     $Output['msg'] = $data_Output['msg'];
                 } else {
-                    $links_user = outputlink($Get_Data_Panel['linksubx'] . "/{$subId}");
-                    if (isBase64($links_user)) {
-                        $links_user = base64_decode($links_user);
-                    }
-                    $links_user = explode("\n", trim($links_user));
+                    $links_user = get_client_sublinks($Get_Data_Panel['name_panel'], $subId);
                     $Output['status'] = 'successful';
                     $Output['username'] = $usernameC;
                     $Output['subscription_url'] = $Get_Data_Panel['linksubx'] . "/{$subId}";
@@ -579,11 +575,8 @@ class ManagePanel
                 $user_data['enable'] = "on_hold";
                 $expire = 0;
             }
-            $linksub = $Get_Data_Panel['linksubx'] . "/{$user_data['subId']}";
-            $links_user = outputlink($Get_Data_Panel['linksubx'] . "/{$user_data['subId']}");
-            if (isBase64($links_user))
-                $links_user = base64_decode($links_user);
-            $links_user = explode("\n", trim($links_user));
+            $linksub = $Get_Data_Panel['linksubx'] . "/sub/{$user_data['subId']}";
+            $links_user = get_client_sublinks($Get_Data_Panel['name_panel'], $user_data['subId']);
             if ($inoice != false)
                 $linksub = "https://$domainhosts/sub/" . $inoice['id_invoice'];
             $user_data['lastOnline'] = $user_data['lastOnline'] == 0 ? "offline" : (new DateTime('@' . ($user_data['lastOnline'] / 1000)))->format('Y-m-d H:i:s');
