@@ -94,40 +94,46 @@ To read the details, please refer to the link below.
 
 Ensure you have the following before installation:
 - 🖥️ **Ubuntu Server 22**
-- 🌐 **A Domain Name**
+- 🌐 **A Domain Name** pointed to your server IP
+- 🤖 **A Telegram Bot Token** (from [@BotFather](https://t.me/BotFather))
+- 🆔 **Your numeric Telegram Admin ID**
 
-### 🔧 Installing the Bot (Stable Version)
+### 🔧 Installing the Bot
 
-Run the following command in your server terminal:
+Run the following command as **root** on your server:
 
 ```bash
 curl -o install.sh -L https://raw.githubusercontent.com/Samr002/mirzabot/main/install.sh && bash install.sh
 ```
 
-When prompted, **select option 1** to complete the installation.
+The installer will ask you for:
 
+- Domain name (e.g. `bot.example.com`)
+- Email for SSL certificate
+- Database name, username, and password
+- Telegram bot token
+- Admin Telegram ID (numeric)
+- Bot username (without @)
+
+Everything else is fully automatic: Apache, PHP 8.2, MySQL, SSL, webhook, and cron jobs.
 
 ---
 
-## 🔄 updating bot
+## 🔄 Updating the Bot
 
-To update your bot to the latest version, use the following command:
+To update to the latest version, simply re-run the installer:
 
 ```bash
 curl -o install.sh -L https://raw.githubusercontent.com/Samr002/mirzabot/main/install.sh && bash install.sh
 ```
-When prompted, **select option update** to remove the bot.
+
+The script will pull the latest changes with `git pull` if the bot is already installed.
+
 ---
 
-## ❌ removing
+## ❌ Removing the Bot
 
-If you want to completely remove the bot from your server, run the following command:
-
-```bash
-curl -o install.sh -L https://raw.githubusercontent.com/Samr002/mirzabot/main/install.sh && bash install.sh
-```
-
-When prompted, **select option 3** to remove the bot.
+To remove the bot manually, stop Apache and MySQL, then delete `/var/www/mirzabot` and drop the database.
 
 ---
 
