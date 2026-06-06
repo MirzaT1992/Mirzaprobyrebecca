@@ -147,8 +147,16 @@ chown www-data:www-data "$CONFIG_PATH"
 
 ### 7. Run table.php (create DB tables)
 echo "==> Running table.php ..."
+# Ensure mysqli extension is active for PHP CLI before running table.php
+if ! php -m 2>/dev/null | grep -qi mysqli; then
+  echo "==> mysqli not found in CLI — reinstalling php8.2-mysql ..."
+  apt install -y --reinstall php8.2-mysql
+fi
 cd /var/www/mirzabot
-php table.php || true
+php table.php
+if [ $? -ne 0 ]; then
+  echo "[WARNING] table.php returned an error. Check /var/www/mirzabot/error_log"
+fi
 
 ### 8. SSL via Certbot
 echo "==> Obtaining SSL certificate ..."
