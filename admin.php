@@ -748,7 +748,8 @@ if (in_array($text, $textadmin) || $datain == "admin") {
         'n2' => '0'
     ));
     $version_panel = $userdata['type'] == "pasarguard" ? "1" : "0";
-    $stmt = $pdo->prepare("INSERT INTO marzban_panel (code_panel,name_panel,sublink,config,MethodUsername,TestAccount,status,limit_panel,namecustom,Methodextend,type,conecton,inboundid,agent,inbound_deactive,'offinbounddisable',url_panel,username_panel,password_panel,time_usertest,val_usertest,linksubx,priceextravolume,priceextratime,pricecustomvolume,pricecustomtime,mainvolume,maxvolume,maintime,maxtime,status_extend,subvip,changeloc,customvolume,on_hold_test,version_panel) VALUES (:code_panel,:name_panel,:sublink,:config,:MethodUsername,:TestAccount,:status,:limit_panel,:namecustom,:Methodextend,:type,:conecton,:inboundid,:agent,:inbound_deactive,:inboundstatus,:url_panel,:username_panel,:password_panel,:val_usertest,:time_usertest,:linksubx,:priceextravolume,:priceextratime,:pricecustomvolume,:pricecustomtime,:mainvolume,:maxvolume,:maintime,:maxtime,'on_extend','offsubvip',:changeloc,:customvolume,'1',:version_panel)");
+    $inboundstatus = "offinbounddisable";
+    $stmt = $pdo->prepare("INSERT INTO marzban_panel (code_panel,name_panel,sublink,config,MethodUsername,TestAccount,status,limit_panel,namecustom,Methodextend,type,conecton,inboundid,agent,inbound_deactive,inboundstatus,url_panel,username_panel,password_panel,time_usertest,val_usertest,linksubx,priceextravolume,priceextratime,pricecustomvolume,pricecustomtime,mainvolume,maxvolume,maintime,maxtime,status_extend,subvip,changeloc,customvolume,on_hold_test,version_panel) VALUES (:code_panel,:name_panel,:sublink,:config,:MethodUsername,:TestAccount,:status,:limit_panel,:namecustom,:Methodextend,:type,:conecton,:inboundid,:agent,:inbound_deactive,:inboundstatus,:url_panel,:username_panel,:password_panel,:val_usertest,:time_usertest,:linksubx,:priceextravolume,:priceextratime,:pricecustomvolume,:pricecustomtime,:mainvolume,:maxvolume,:maintime,:maxtime,'on_extend','offsubvip',:changeloc,:customvolume,'1',:version_panel)");
     $stmt->bindParam(':code_panel', $randomString);
     $stmt->bindParam(':name_panel', $userdata['namepanel'], PDO::PARAM_STR);
     $stmt->bindParam(':sublink', $sublink);
@@ -764,6 +765,7 @@ if (in_array($text, $textadmin) || $datain == "admin") {
     $stmt->bindParam(':inboundid', $inboundid);
     $stmt->bindParam(':agent', $agent);
     $stmt->bindParam(':inbound_deactive', $inboundid);
+    $stmt->bindParam(':inboundstatus', $inboundstatus);
     $stmt->bindParam(':url_panel', $userdata['url_panel']);
     $stmt->bindParam(':linksubx', $userdata['url_panel']);
     $stmt->bindParam(':username_panel', $userdata['username']);
