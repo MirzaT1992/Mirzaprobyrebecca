@@ -575,7 +575,7 @@ class ManagePanel
                 $user_data['enable'] = "on_hold";
                 $expire = 0;
             }
-            $linksub = $Get_Data_Panel['linksubx'] . "/sub/{$user_data['subId']}";
+            $linksub = $Get_Data_Panel['linksubx'] . "/{$user_data['subId']}";
             $links_user = get_client_sublinks($Get_Data_Panel['name_panel'], $user_data['subId']);
             if ($inoice != false)
                 $linksub = "https://$domainhosts/sub/" . $inoice['id_invoice'];
