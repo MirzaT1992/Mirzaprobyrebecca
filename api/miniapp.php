@@ -347,7 +347,8 @@ switch ($data['actions']) {
                 } else {
                     $is_username = false;
                 }
-                $statuscustomvolume = json_decode($result['customvolume'], true)[$user_info['agent']];
+                $customvolumeData = json_decode($result['customvolume'] ?? '{}', true);
+                $statuscustomvolume = is_array($customvolumeData) ? ($customvolumeData[$user_info['agent']] ?? '0') : '0';
                 if (intval($statuscustomvolume) == 1 && $result['type'] != "Manualsale") {
                     $is_custom = true;
                 } else {
@@ -591,28 +592,35 @@ switch ($data['actions']) {
             if (empty($panel)) {
                 echo json_encode(array(
                     'status' => false,
-                    'msg' => "panel not fonud!(invalid id_panel)"
+                    'msg' => "panel not fonud!(invalid id_panel)",
+                    'obj' => []
                 ));
                 return;
             }
             $category_remark = null;
-            $category_remarks = "";
             $selected_category_id = isset($data['category_id']) ? $data['category_id'] : null;
+            $sqlParams = [':location' => $panel['name_panel'], ':agent' => $user_info['agent']];
+            $sqlWhere = "(Location = :location OR Location = '/all') AND agent = :agent";
             if (!empty($data['category_id'])) {
                 $category_remark = select("category", "*", "id", $data['category_id'], "select");
                 if (!is_array($category_remark) || !isset($category_remark['remark'])) {
                     echo json_encode([
                         'status' => false,
                         'msg' => "category not found!(invalid category_id)",
+                        'obj' => []
                     ]);
                     return;
                 }
-                $category_remarks = "AND category = '{$category_remark['remark']}'";
+                $sqlWhere .= " AND category = :category";
+                $sqlParams[':category'] = $category_remark['remark'];
                 $selected_category_id = $category_remark['id'];
             }
-            $time_range_day = $data['time_range_day'] == 0 ? "" : "AND Service_time = '{$data['time_range_day']}'";
-            $stmt = $pdo->prepare("SELECT * FROM product WHERE (Location = '{$panel['name_panel']}' OR Location = '/all')AND agent= '{$user_info['agent']}' $category_remarks $time_range_day");
-            $stmt->execute();
+            if ($data['time_range_day'] != 0) {
+                $sqlWhere .= " AND Service_time = :time_range_day";
+                $sqlParams[':time_range_day'] = strval($data['time_range_day']);
+            }
+            $stmt = $pdo->prepare("SELECT * FROM product WHERE {$sqlWhere}");
+            $stmt->execute($sqlParams);
             $product_list = [];
             while ($result = $stmt->fetch(PDO::FETCH_ASSOC)) {
                 $hide_panel = json_decode($result['hide_panel'], true);
@@ -674,19 +682,21 @@ switch ($data['actions']) {
                 ));
                 return;
             }
-            $statuscustomvolume = json_decode($panel['customvolume'], true)[$user_info['agent']];
-            $mainvolume = json_decode($panel['mainvolume'], true);
-            $mainvolume = $mainvolume[$user_info['agent']];
-            $maxvolume = json_decode($panel['maxvolume'], true);
-            $maxvolume = $maxvolume[$user_info['agent']];
-            $maintime = json_decode($panel['maintime'], true);
-            $maintime = $maintime[$user_info['agent']];
-            $maxtime = json_decode($panel['maxtime'], true);
-            $maxtime = $maxtime[$user_info['agent']];
-            $traffic_price = json_decode($panel['pricecustomvolume'], true);
-            $traffic_price = $traffic_price[$user_info['agent']];
-            $time_price = json_decode($panel['pricecustomtime'], true);
-            $time_price = $time_price[$user_info['agent']];
+            $agent = $user_info['agent'];
+            $cvData  = json_decode($panel['customvolume']     ?? '{}', true) ?? [];
+            $mvData  = json_decode($panel['mainvolume']       ?? '{}', true) ?? [];
+            $mxvData = json_decode($panel['maxvolume']        ?? '{}', true) ?? [];
+            $mtData  = json_decode($panel['maintime']         ?? '{}', true) ?? [];
+            $mxtData = json_decode($panel['maxtime']          ?? '{}', true) ?? [];
+            $pvData  = json_decode($panel['pricecustomvolume'] ?? '{}', true) ?? [];
+            $ptData  = json_decode($panel['pricecustomtime']  ?? '{}', true) ?? [];
+            $statuscustomvolume = $cvData[$agent]  ?? '0';
+            $mainvolume         = $mvData[$agent]  ?? 0;
+            $maxvolume          = $mxvData[$agent] ?? 0;
+            $maintime           = $mtData[$agent]  ?? 0;
+            $maxtime            = $mxtData[$agent] ?? 0;
+            $traffic_price      = $pvData[$agent]  ?? 0;
+            $time_price         = $ptData[$agent]  ?? 0;
             if (intval($statuscustomvolume) == 1 && $panel['type'] != "Manualsale") {
                 $price = ($traffic_price * intval($data['traffic_gb'])) + ($time_price * intval($data['time_days']));
             } else {
@@ -741,20 +751,22 @@ switch ($data['actions']) {
         if (empty($data['custom_service'])) {
             $product = select("product", "*", "code_product", $data['service_id'], "select");
         } else {
-            $statuscustomvolume = json_decode($panel['customvolume'], true)[$user_info['agent']];
-            $mainvolume = json_decode($panel['mainvolume'], true);
-            $mainvolume = $mainvolume[$user_info['agent']];
-            $maxvolume = json_decode($panel['maxvolume'], true);
-            $maxvolume = $maxvolume[$user_info['agent']];
-            $maintime = json_decode($panel['maintime'], true);
-            $maintime = $maintime[$user_info['agent']];
-            $maxtime = json_decode($panel['maxtime'], true);
-            $maxtime = $maxtime[$user_info['agent']];
-            $customsrvice = $data['custom_service'];
-            $eextraprice = json_decode($panel['pricecustomvolume'], true);
-            $custompricevalue = $eextraprice[$user_info['agent']];
-            $eextraprice = json_decode($panel['pricecustomtime'], true);
-            $customtimevalueprice = $eextraprice[$user_info['agent']];
+            $pAgent = $user_info['agent'];
+            $pcvData  = json_decode($panel['customvolume']      ?? '{}', true) ?? [];
+            $pmvData  = json_decode($panel['mainvolume']        ?? '{}', true) ?? [];
+            $pmxvData = json_decode($panel['maxvolume']         ?? '{}', true) ?? [];
+            $pmtData  = json_decode($panel['maintime']          ?? '{}', true) ?? [];
+            $pmxtData = json_decode($panel['maxtime']           ?? '{}', true) ?? [];
+            $ppvData  = json_decode($panel['pricecustomvolume'] ?? '{}', true) ?? [];
+            $pptData  = json_decode($panel['pricecustomtime']   ?? '{}', true) ?? [];
+            $statuscustomvolume   = $pcvData[$pAgent]  ?? '0';
+            $mainvolume           = $pmvData[$pAgent]  ?? 0;
+            $maxvolume            = $pmxvData[$pAgent] ?? 0;
+            $maintime             = $pmtData[$pAgent]  ?? 0;
+            $maxtime              = $pmxtData[$pAgent] ?? 0;
+            $customsrvice         = $data['custom_service'];
+            $custompricevalue     = $ppvData[$pAgent]  ?? 0;
+            $customtimevalueprice = $pptData[$pAgent]  ?? 0;
             $product = array(
                 'code_product' => "customvolume",
                 'name_product' => $textbotlang['users']['customSellVolume']['title'],
@@ -791,7 +803,6 @@ switch ($data['actions']) {
         if (intval($user_info['pricediscount']) != 0) {
             $result = ($product['price_product'] * $user_info['pricediscount']) / 100;
             $product['price_product'] = $product['price_product'] - $result;
-            sendmessage($from_id, sprintf($textbotlang['users']['Discount']['discountapplied'], $user['pricediscount']), null, 'HTML');
         }
         if ($user_info['Balance'] < $product['price_product']) {
             http_response_code(500);
@@ -856,6 +867,9 @@ switch ($data['actions']) {
                 ]);
             }
             return;
+        }
+        if ($panel['type'] == 'x-ui_single' && !empty($dataoutput['subId'])) {
+            update("invoice", "uuid", $dataoutput['subId'], "id_invoice", $randomString);
         }
         $config = "";
         $output_config_link = $panel['sublink'] == "onsublink" ? $dataoutput['subscription_url'] : "";

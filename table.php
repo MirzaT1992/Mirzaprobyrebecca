@@ -445,6 +445,8 @@ try {
             $connect->query("UPDATE marzban_panel SET code_panel = '$code' WHERE id = " . $row['id']);
             $next_num++;
         }
+        // Enable custom-service by default for existing x-ui_single panels still at the all-zero default
+        $connect->query("UPDATE marzban_panel SET customvolume = '{\"f\":\"1\",\"n\":\"1\",\"n2\":\"1\"}' WHERE type = 'x-ui_single' AND customvolume = '{\"f\":\"0\",\"n\":\"0\",\"n2\":\"0\"}'");
     }
 } catch (Exception $e) {
     file_put_contents('error_log', $e->getMessage());

@@ -742,11 +742,10 @@ if (in_array($text, $textadmin) || $datain == "admin") {
         'n' => "1000",
         'n2' => "1000"
     ));
-    $VALUE = json_encode(array(
-        'f' => '0',
-        'n' => '0',
-        'n2' => '0'
-    ));
+    // x-ui_single panels have custom-service enabled by default since 3x-ui natively supports it
+    $VALUE = ($userdata['type'] === 'x-ui_single')
+        ? json_encode(['f' => '1', 'n' => '1', 'n2' => '1'])
+        : json_encode(['f' => '0', 'n' => '0', 'n2' => '0']);
     $version_panel = $userdata['type'] == "pasarguard" ? "1" : "0";
     $inboundstatus = "offinbounddisable";
     $stmt = $pdo->prepare("INSERT INTO marzban_panel (code_panel,name_panel,sublink,config,MethodUsername,TestAccount,status,limit_panel,namecustom,Methodextend,type,conecton,inboundid,agent,inbound_deactive,inboundstatus,url_panel,username_panel,password_panel,time_usertest,val_usertest,linksubx,priceextravolume,priceextratime,pricecustomvolume,pricecustomtime,mainvolume,maxvolume,maintime,maxtime,status_extend,subvip,changeloc,customvolume,on_hold_test,version_panel) VALUES (:code_panel,:name_panel,:sublink,:config,:MethodUsername,:TestAccount,:status,:limit_panel,:namecustom,:Methodextend,:type,:conecton,:inboundid,:agent,:inbound_deactive,:inboundstatus,:url_panel,:username_panel,:password_panel,:val_usertest,:time_usertest,:linksubx,:priceextravolume,:priceextratime,:pricecustomvolume,:pricecustomtime,:mainvolume,:maxvolume,:maintime,:maxtime,'on_extend','offsubvip',:changeloc,:customvolume,'1',:version_panel)");
