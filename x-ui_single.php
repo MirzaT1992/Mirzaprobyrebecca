@@ -39,6 +39,12 @@ function get_clinets($username, $namepanel)
         return array('status' => 200, 'body' => json_encode(array('success' => false, 'msg' => $data_get['msg'] ?? 'User not found')), 'error' => '');
     }
 
+    // Handle both single-object and array-of-objects in obj
+    $c = $data_get['obj'];
+    if (isset($c[0]) && is_array($c[0])) {
+        $c = $c[0];
+    }
+
     // 2) Fetch traffic counters: up, down, total, expiryTime
     // traffic endpoint is authoritative for total and expiryTime
     $url_traffic = $panel['url_panel'] . "/panel/api/clients/traffic/" . urlencode($username);
@@ -46,7 +52,6 @@ function get_clinets($username, $namepanel)
     $req_traffic->setHeaders($headers);
     $resp_traffic = $req_traffic->get();
 
-    $c    = $data_get['obj'];
     $up   = 0;
     $down = 0;
     $total      = $c['totalGB']    ?? 0;
@@ -61,7 +66,24 @@ function get_clinets($username, $namepanel)
         }
     }
 
-    // 3) Merge into a single obj compatible with panels.php expectations
+    // 3) Get subId — try GET response, fall back to search endpoint
+    $subId = $c['subId'] ?? '';
+    if (empty($subId)) {
+        $url_search = $panel['url_panel'] . "/panel/api/clients/search"
+            . "?search=" . urlencode($username)
+            . "&page=1&size=1&filter=&protocol=&sort=email&order=ascend";
+        $req_search = new CurlRequest($url_search);
+        $req_search->setHeaders($headers);
+        $resp_search = $req_search->get();
+        if (empty($resp_search['error']) && $resp_search['status'] == 200) {
+            $data_search = json_decode($resp_search['body'], true);
+            if (!empty($data_search['obj']['items'][0]['subId'])) {
+                $subId = $data_search['obj']['items'][0]['subId'];
+            }
+        }
+    }
+
+    // 4) Merge into a single obj compatible with panels.php expectations
     $merged = array(
         'email'      => $c['email']      ?? $username,
         'expiryTime' => $expiryTime,
@@ -69,7 +91,7 @@ function get_clinets($username, $namepanel)
         'total'      => $total,
         'up'         => $up,
         'down'       => $down,
-        'subId'      => $c['subId']      ?? '',
+        'subId'      => $subId,
         'lastOnline' => 0,
         'inboundId'  => isset($c['inboundIds'][0]) ? intval($c['inboundIds'][0]) : 0,
         'tgId'       => $c['tgId']       ?? 0,

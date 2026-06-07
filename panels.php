@@ -173,6 +173,7 @@ class ManagePanel
                     $Output['configs'] = $links_user;
                     if ($inoice != false) {
                         $Output['subscription_url'] = "https://$domainhosts/sub/" . $inoice['id_invoice'];
+                        update("invoice", "uuid", $subId, "id_invoice", $inoice['id_invoice']);
                     }
                 }
             }
@@ -575,8 +576,10 @@ class ManagePanel
                 $user_data['enable'] = "on_hold";
                 $expire = 0;
             }
-            $linksub = $Get_Data_Panel['linksubx'] . "/{$user_data['subId']}";
-            $links_user = get_client_sublinks($Get_Data_Panel['name_panel'], $user_data['subId']);
+            // Prefer invoice-stored subId (set at creation time); fall back to API response
+            $effectiveSubId = (!empty($inoice) && !empty($inoice['uuid'])) ? $inoice['uuid'] : ($user_data['subId'] ?? '');
+            $linksub = $Get_Data_Panel['linksubx'] . "/{$effectiveSubId}";
+            $links_user = get_client_sublinks($Get_Data_Panel['name_panel'], $effectiveSubId);
             if ($inoice != false)
                 $linksub = "https://$domainhosts/sub/" . $inoice['id_invoice'];
             $user_data['lastOnline'] = $user_data['lastOnline'] == 0 ? "offline" : (new DateTime('@' . ($user_data['lastOnline'] / 1000)))->format('Y-m-d H:i:s');
