@@ -66,21 +66,48 @@ function get_clinets($username, $namepanel)
         }
     }
 
-    // 3) Get subId — try GET response, fall back to search endpoint
+    // 3) Get subId — try GET response, then search endpoint, then lazy-generate
     $subId = $c['subId'] ?? '';
+
+    // Fallback 1: search endpoint (filters by exact email match)
     if (empty($subId)) {
-        $url_search = $panel['url_panel'] . "/panel/api/clients/search"
-            . "?search=" . urlencode($username)
-            . "&page=1&size=1&filter=&protocol=&sort=email&order=ascend";
-        $req_search = new CurlRequest($url_search);
+        $search_qs = http_build_query([
+            'search'   => $username,
+            'page'     => 1,
+            'size'     => 25,
+            'filter'   => '',
+            'protocol' => '',
+            'sort'     => 'email',
+            'order'    => 'ascend',
+        ]);
+        $req_search = new CurlRequest($panel['url_panel'] . "/panel/api/clients/search?" . $search_qs);
         $req_search->setHeaders($headers);
         $resp_search = $req_search->get();
         if (empty($resp_search['error']) && $resp_search['status'] == 200) {
             $data_search = json_decode($resp_search['body'], true);
-            if (!empty($data_search['obj']['items'][0]['subId'])) {
-                $subId = $data_search['obj']['items'][0]['subId'];
+            $items = $data_search['obj']['items'] ?? [];
+            foreach ($items as $item) {
+                if (($item['email'] ?? '') === $username && !empty($item['subId'])) {
+                    $subId = $item['subId'];
+                    break;
+                }
             }
         }
+    }
+
+    // Fallback 2: generate new subId and push it to the panel (lazy migration)
+    if (empty($subId)) {
+        $subId = bin2hex(random_bytes(8));
+        $update_payload = [
+            'email'      => $c['email']      ?? $username,
+            'enable'     => $c['enable']     ?? true,
+            'totalGB'    => $total,
+            'expiryTime' => $expiryTime,
+            'subId'      => $subId,
+            'tgId'       => $c['tgId']       ?? 0,
+            'limitIp'    => $c['limitIp']    ?? 0,
+        ];
+        updateClient($namepanel, $username, $update_payload);
     }
 
     // 4) Merge into a single obj compatible with panels.php expectations
