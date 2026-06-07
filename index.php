@@ -3938,6 +3938,9 @@ if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $data
         return;
     }
     update("invoice", "Status", "active", "username", $username_ac);
+    if ($marzban_list_get['type'] == "x-ui_single" && !empty($dataoutput['subId'])) {
+        update("invoice", "uuid", $dataoutput['subId'], "id_invoice", $randomString);
+    }
     $output_config_link = "";
     $config = "";
     $output_config_link = $marzban_list_get['sublink'] == "onsublink" ? $dataoutput['subscription_url'] : "";
@@ -4475,6 +4478,9 @@ if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $data
         $stmt->bind_param("sssssssssss", $from_id, $randomString, $username_acc, $date, $user['Processing_value'], $info_product['name_product'], $info_product['price_product'], $info_product['Volume_constraint'], $info_product['Service_time'], $Status, $notifctions);
         $stmt->execute();
         $stmt->close();
+        if ($marzban_list_get['type'] == "x-ui_single" && !empty($dataoutput['subId'])) {
+            update("invoice", "uuid", $dataoutput['subId'], "id_invoice", $randomString);
+        }
         $config = "";
         $output_config_link = $marzban_list_get['sublink'] == "onsublink" ? $dataoutput['subscription_url'] : "";
         if ($marzban_list_get['config'] == "onconfig") {

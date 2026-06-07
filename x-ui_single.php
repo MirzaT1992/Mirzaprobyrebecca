@@ -95,21 +95,6 @@ function get_clinets($username, $namepanel)
         }
     }
 
-    // Fallback 2: generate new subId and push it to the panel (lazy migration)
-    if (empty($subId)) {
-        $subId = bin2hex(random_bytes(8));
-        $update_payload = [
-            'email'      => $c['email']      ?? $username,
-            'enable'     => $c['enable']     ?? true,
-            'totalGB'    => $total,
-            'expiryTime' => $expiryTime,
-            'subId'      => $subId,
-            'tgId'       => $c['tgId']       ?? 0,
-            'limitIp'    => $c['limitIp']    ?? 0,
-        ];
-        updateClient($namepanel, $username, $update_payload);
-    }
-
     // 4) Merge into a single obj compatible with panels.php expectations
     $merged = array(
         'email'      => $c['email']      ?? $username,

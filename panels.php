@@ -169,8 +169,9 @@ class ManagePanel
                     $links_user = get_client_sublinks($Get_Data_Panel['name_panel'], $subId);
                     $Output['status'] = 'successful';
                     $Output['username'] = $usernameC;
-                    $Output['subscription_url'] = $Get_Data_Panel['linksubx'] . "/{$subId}";
+                    $Output['subscription_url'] = rtrim($Get_Data_Panel['linksubx'], '/') . "/{$subId}";
                     $Output['configs'] = $links_user;
+                    $Output['subId'] = $subId;
                     if ($inoice != false) {
                         $Output['subscription_url'] = "https://$domainhosts/sub/" . $inoice['id_invoice'];
                         update("invoice", "uuid", $subId, "id_invoice", $inoice['id_invoice']);
@@ -386,6 +387,14 @@ class ManagePanel
         } else {
             $inoice = false;
         }
+        // For x-ui_single: always read stored subId from invoice regardless of subvip
+        $xui_stored_subid = null;
+        if ($Get_Data_Panel['type'] == "x-ui_single") {
+            $xui_invoice_row = select("invoice", "*", "username", $username, "select");
+            if ($xui_invoice_row && !empty($xui_invoice_row['uuid'])) {
+                $xui_stored_subid = $xui_invoice_row['uuid'];
+            }
+        }
         if ($Get_Data_Panel['type'] == "marzban") {
             $UsernameData = getuser($username, $Get_Data_Panel['name_panel']);
             if (!empty($UsernameData['error'])) {
@@ -576,9 +585,27 @@ class ManagePanel
                 $user_data['enable'] = "on_hold";
                 $expire = 0;
             }
-            // Prefer invoice-stored subId (set at creation time); fall back to API response
-            $effectiveSubId = (!empty($inoice) && !empty($inoice['uuid'])) ? $inoice['uuid'] : ($user_data['subId'] ?? '');
-            $linksub = $Get_Data_Panel['linksubx'] . "/{$effectiveSubId}";
+            // Prefer invoice-stored subId over API response (API may not return subId field)
+            $effectiveSubId = !empty($xui_stored_subid) ? $xui_stored_subid : ($user_data['subId'] ?? '');
+            // One-time lazy migration: generate subId, push to panel, persist to invoice
+            if (empty($effectiveSubId)) {
+                $effectiveSubId = bin2hex(random_bytes(8));
+                $update_payload_xui = [
+                    'email'      => $username,
+                    'enable'     => ($user_data['enable'] !== 'disabled'),
+                    'totalGB'    => $user_data['total'],
+                    'expiryTime' => $user_data['expiryTime'],
+                    'subId'      => $effectiveSubId,
+                    'tgId'       => $user_data['tgId'] ?? 0,
+                    'limitIp'    => $user_data['limitIp'] ?? 0,
+                ];
+                updateClient($Get_Data_Panel['name_panel'], $username, $update_payload_xui);
+                $xui_inv_save = select("invoice", "*", "username", $username, "select");
+                if ($xui_inv_save && !empty($xui_inv_save['id_invoice'])) {
+                    update("invoice", "uuid", $effectiveSubId, "id_invoice", $xui_inv_save['id_invoice']);
+                }
+            }
+            $linksub = rtrim($Get_Data_Panel['linksubx'], '/') . "/{$effectiveSubId}";
             $links_user = get_client_sublinks($Get_Data_Panel['name_panel'], $effectiveSubId);
             if ($inoice != false)
                 $linksub = "https://$domainhosts/sub/" . $inoice['id_invoice'];
