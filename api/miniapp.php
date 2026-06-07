@@ -347,12 +347,13 @@ switch ($data['actions']) {
                 } else {
                     $is_username = false;
                 }
-                $customvolumeData = json_decode($result['customvolume'] ?? '{}', true);
-                $statuscustomvolume = is_array($customvolumeData) ? ($customvolumeData[$user_info['agent']] ?? '0') : '0';
-                if (intval($statuscustomvolume) == 1 && $result['type'] != "Manualsale") {
+                if ($result['type'] === 'x-ui_single') {
+                    // 3x-ui natively supports custom client creation, always enable
                     $is_custom = true;
                 } else {
-                    $is_custom = false;
+                    $customvolumeData = json_decode($result['customvolume'] ?? '{}', true);
+                    $statuscustomvolume = is_array($customvolumeData) ? ($customvolumeData[$user_info['agent']] ?? '0') : '0';
+                    $is_custom = (intval($statuscustomvolume) == 1 && $result['type'] != "Manualsale");
                 }
                 if ($result['hide_user'] != null && in_array($user_info['id'], json_decode($result['hide_user'], true)))
                     continue;
@@ -697,7 +698,7 @@ switch ($data['actions']) {
             $maxtime            = $mxtData[$agent] ?? 0;
             $traffic_price      = $pvData[$agent]  ?? 0;
             $time_price         = $ptData[$agent]  ?? 0;
-            if (intval($statuscustomvolume) == 1 && $panel['type'] != "Manualsale") {
+            if ($panel['type'] != "Manualsale" && ($panel['type'] === 'x-ui_single' || intval($statuscustomvolume) == 1)) {
                 $price = ($traffic_price * intval($data['traffic_gb'])) + ($time_price * intval($data['time_days']));
             } else {
                 $price = false;
