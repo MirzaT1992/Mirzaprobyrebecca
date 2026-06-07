@@ -6096,6 +6096,9 @@ if ($datain == "settimecornremove" && $adminrulecheck['rule'] == "administrator"
     $stmt->bindParam(':Status', $Status, PDO::PARAM_STR);
     $stmt->bindParam(':notifctions', $notifctions, PDO::PARAM_STR);
     $stmt->execute();
+    if ($marzban_list_get['type'] == "x-ui_single" && !empty($DataUserOut['subId'])) {
+        update("invoice", "uuid", $DataUserOut['subId'], "id_invoice", $randomString);
+    }
     $output_config_link = $marzban_list_get['sublink'] == "onsublink" ? $DataUserOut['subscription_url'] : "";
     $config = "";
     if ($marzban_list_get['config'] == "onconfig" && is_array($DataUserOut['configs'])) {

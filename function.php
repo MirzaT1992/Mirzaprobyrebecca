@@ -811,6 +811,9 @@ function DirectPayment($order_id, $image = 'images.jpg')
             }
             return;
         }
+        if ($marzban_list_get['type'] == "x-ui_single" && !empty($dataoutput['subId'])) {
+            update("invoice", "uuid", $dataoutput['subId'], "id_invoice", $get_invoice['id_invoice']);
+        }
         $Shoppinginfo = json_encode([
             'inline_keyboard' => [
                 [
