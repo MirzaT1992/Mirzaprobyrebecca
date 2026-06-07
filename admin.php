@@ -3638,7 +3638,12 @@ elseif ($datain == "systemsms") {
     outtypepanel($typepanel['type'], $textbotlang['Admin']['managepanel']['changedUrlPanel']);
     update("marzban_panel", "url_panel", $text, "name_panel", $user['Processing_value']);
     update("marzban_panel", "datelogin", null, "name_panel", $user['Processing_value']);
-    step('home', $from_id);
+    if ($typepanel['type'] == "x-ui_single") {
+        sendmessage($from_id, $textbotlang['Admin']['adminphp']['ask_send_token'], $backadmin, 'HTML');
+        step('GetpaawordNew', $from_id);
+    } else {
+        step('home', $from_id);
+    }
 } elseif ($text == $textbotlang['keyboard']['changeUserGroup'] && $adminrulecheck['rule'] == "administrator") {
     sendmessage($from_id, $textbotlang['Admin']['adminphp']['err_send_panel_user_2'], $backadmin, 'HTML');
     step('getagentpanel', $from_id);
