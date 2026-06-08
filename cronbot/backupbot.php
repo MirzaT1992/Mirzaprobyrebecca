@@ -1,8 +1,8 @@
 <?php
-require_once '../config.php';
-require_once '../function.php';
+require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../function.php';
 $textbotlang = languagechange();
-require_once '../botapi.php';
+require_once __DIR__ . '/../botapi.php';
 
 // Use __DIR__ (directory of this file) so paths are correct regardless
 // of the cron process working directory (which is often /root or /).
