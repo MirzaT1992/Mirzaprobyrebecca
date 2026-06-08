@@ -1,6 +1,6 @@
 <?php
 require_once 'config.php';
-function telegram($method, $datas = [], $token = null)
+function telegram($method, $datas = [], $token = null, $timeout = 10)
 {
     global $APIKEY;
 
@@ -21,7 +21,7 @@ function telegram($method, $datas = [], $token = null)
     }
 
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $datas);
 

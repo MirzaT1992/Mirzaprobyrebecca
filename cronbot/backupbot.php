@@ -8,11 +8,29 @@ require_once '../botapi.php';
 // of the cron process working directory (which is often /root or /).
 $destination = __DIR__;
 $sourcefir   = dirname(__DIR__);
+$logFile     = $destination . '/backup.log';
+
+function blog(string $msg): void
+{
+    global $logFile;
+    $line = '[' . date('Y-m-d H:i:s') . '] ' . $msg . PHP_EOL;
+    file_put_contents($logFile, $line, FILE_APPEND | LOCK_EX);
+}
+
+blog('=== Backup started ===');
 
 $setting = select("setting", "*");
 
 $reportbackupRow = select("topicid", "idreport", "report", "backupfile", "select");
 $reportbackup    = is_array($reportbackupRow) ? ($reportbackupRow['idreport'] ?? '0') : '0';
+
+$channelReport = $setting['Channel_Report'] ?? '';
+blog("Channel_Report={$channelReport} | thread_id={$reportbackup}");
+
+if (empty($channelReport) || $channelReport === '0') {
+    blog('ERROR: Channel_Report is empty or 0 — cannot send backups. Configure it in bot settings.');
+    exit;
+}
 
 // ─── Sub-bot file backups ───────────────────────────────────────────────────
 $botlist = select("botsaz", "*", null, null, "fetchAll");
@@ -30,17 +48,22 @@ if ($botlist) {
         if (file_exists($prodName))  $targets .= ' ' . escapeshellarg($prodName);
 
         if (!empty($targets)) {
-            shell_exec('zip -r ' . escapeshellarg($zipFile) . $targets . ' 2>/dev/null');
+            $zipCmd = 'zip -r ' . escapeshellarg($zipFile) . $targets . ' >> ' . escapeshellarg($logFile) . ' 2>&1';
+            shell_exec($zipCmd);
         }
 
         if (file_exists($zipFile) && filesize($zipFile) > 0) {
-            telegram('sendDocument', [
-                'chat_id'           => $setting['Channel_Report'],
+            blog("Sending bot backup: {$bot['username']} ({$bot['id_user']})");
+            $res = telegram('sendDocument', [
+                'chat_id'           => $channelReport,
                 'message_thread_id' => $reportbackup,
                 'document'          => new CURLFile($zipFile),
                 'caption'           => "@{$bot['username']} | {$bot['id_user']}",
-            ]);
+            ], null, 120);
+            blog("sendDocument result: " . json_encode($res['ok'] ?? null) . (isset($res['description']) ? ' — ' . $res['description'] : ''));
             unlink($zipFile);
+        } else {
+            blog("Bot backup zip missing or empty for {$bot['username']} — skipping send");
         }
     }
 }
@@ -60,31 +83,35 @@ foreach (['/usr/bin/mysqldump', '/usr/local/bin/mysqldump', '/bin/mysqldump'] as
     }
 }
 if ($mysqldump === '') {
-    $mysqldump = trim((string) shell_exec('which mysqldump 2>/dev/null'));
+    $mysqldump = trim((string) shell_exec('which mysqldump 2>&1'));
 }
 if ($mysqldump === '') {
+    blog('ERROR: mysqldump not found on this server.');
     telegram('sendmessage', [
-        'chat_id'           => $setting['Channel_Report'],
+        'chat_id'           => $channelReport,
         'message_thread_id' => $reportbackup,
         'text'              => '⚠️ mysqldump not found on this server.',
     ]);
     exit;
 }
+blog("Using mysqldump: {$mysqldump}");
 
 // Detect MariaDB vs MySQL and pick the correct SSL silence flag
 $dumpVersion = (string) shell_exec($mysqldump . ' --version 2>&1');
 $sslFlag = (stripos($dumpVersion, 'mariadb') !== false) ? '--skip-ssl' : '--ssl-mode=DISABLED';
+blog("mysqldump version: " . trim($dumpVersion) . " | sslFlag={$sslFlag}");
 
 // Use MYSQL_PWD env var — password never appears in the process list or ps output
 putenv('MYSQL_PWD=' . $passworddb);
 $command = sprintf(
-    '%s -h %s -u %s --no-tablespaces %s %s > %s 2>/dev/null',
+    '%s -h %s -u %s --no-tablespaces %s %s > %s 2>> %s',
     escapeshellarg($mysqldump),
     escapeshellarg($dbhost),
     escapeshellarg($usernamedb),
     $sslFlag,
     escapeshellarg($dbname),
-    escapeshellarg($sqlFile)
+    escapeshellarg($sqlFile),
+    escapeshellarg($logFile)
 );
 
 $dumpOutput = [];
@@ -93,10 +120,12 @@ exec($command, $dumpOutput, $dumpExit);
 putenv('MYSQL_PWD=');  // clear immediately after use
 
 $sqlOk = ($dumpExit === 0 && file_exists($sqlFile) && filesize($sqlFile) > 0);
+blog("mysqldump exit={$dumpExit} | sqlFile exists=" . (file_exists($sqlFile) ? 'yes' : 'no') . " | size=" . (file_exists($sqlFile) ? filesize($sqlFile) : 0));
 
 if (!$sqlOk) {
+    blog('ERROR: mysqldump failed — sending error notification');
     telegram('sendmessage', [
-        'chat_id'           => $setting['Channel_Report'],
+        'chat_id'           => $channelReport,
         'message_thread_id' => $reportbackup,
         'text'              => $textbotlang['keyboard']['backupError'] ?? '⚠️ Backup failed: mysqldump error.',
     ]);
@@ -108,18 +137,23 @@ if (!$sqlOk) {
         $zipTargets .= ' ' . escapeshellarg($configFile);
     }
     // -j: strip directory paths so files sit at zip root
-    shell_exec('zip -j ' . escapeshellarg($zipFile) . ' ' . $zipTargets . ' 2>/dev/null');
+    $zipCmd = 'zip -j ' . escapeshellarg($zipFile) . ' ' . $zipTargets . ' >> ' . escapeshellarg($logFile) . ' 2>&1';
+    shell_exec($zipCmd);
 
     // Prefer the zip; fall back to raw SQL if zip failed
     $sendFile = (file_exists($zipFile) && filesize($zipFile) > 0) ? $zipFile : $sqlFile;
+    blog("Sending DB backup: " . basename($sendFile) . " (" . filesize($sendFile) . " bytes)");
 
-    telegram('sendDocument', [
-        'chat_id'           => $setting['Channel_Report'],
+    $res = telegram('sendDocument', [
+        'chat_id'           => $channelReport,
         'message_thread_id' => $reportbackup,
         'document'          => new CURLFile($sendFile),
         'caption'           => $textbotlang['hardcoded']['backupDatabaseCaption'] ?? '🗄 Database Backup',
-    ]);
+    ], null, 120);
+    blog("sendDocument result: " . json_encode($res['ok'] ?? null) . (isset($res['description']) ? ' — ' . $res['description'] : ''));
 
     if (file_exists($sqlFile)) unlink($sqlFile);
     if (file_exists($zipFile)) unlink($zipFile);
 }
+
+blog('=== Backup finished ===');
