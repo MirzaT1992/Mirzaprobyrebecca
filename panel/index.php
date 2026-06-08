@@ -36,7 +36,7 @@ try {
         $ds = mktime(0, 0, 0, (int)date('n'), (int)date('j') - $i, (int)date('Y'));
         $de = $ds + 86399;
         $weeklyRevenue[] = [
-            'label' => date('j/n', $ds),
+            'label' => jdate('j/n', $ds),
             'rev'   => (int) db_query($pdo,
                 "SELECT COALESCE(SUM(price_product),0) FROM invoice WHERE time_sell BETWEEN ? AND ? AND $PAID",
                 [$ds, $de]
@@ -47,7 +47,7 @@ try {
 } catch (Exception $e) {
     for ($i = 0; $i < 7; $i++) {
         $ds = mktime(0, 0, 0, (int)date('n'), (int)date('j') - (6 - $i), (int)date('Y'));
-        $weeklyRevenue[] = ['label' => date('j/n', $ds), 'rev' => 0, 'today' => ($i === 6)];
+        $weeklyRevenue[] = ['label' => jdate('j/n', $ds), 'rev' => 0, 'today' => ($i === 6)];
     }
 }
 
@@ -90,9 +90,9 @@ function fmtS(int $v): string {
       <?= $greeting ?>، <span style="color:var(--ac)"><?= htmlspecialchars($adminName) ?></span>&nbsp;👋
     </div>
     <div style="font-size:.78rem;color:var(--mute);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <span><?= date('Y/m/d') ?></span>
+      <span><?= jdate('Y/m/d') ?></span>
       <span style="opacity:.4">·</span>
-      <span>InfoWild Bot Admin Panel</span>
+      <span>میرزا بات | پنل مدیریت</span>
       <span style="opacity:.4">·</span>
       <span id="dash-clock"><?= date('H:i') ?></span>
     </div>

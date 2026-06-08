@@ -8,6 +8,40 @@ date_default_timezone_set('Asia/Tehran');
 // Panel UI language strings (loaded from lang/fa.php via languagechange())
 $textbotlang = languagechange();
 
+function gregorian_to_jalali(int $gy, int $gm, int $gd): array {
+    $jdim = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29];
+    $g    = $gy - 1600;
+    $gdn  = 365 * $g + (int)(($g + 3) / 4) - (int)(($g + 99) / 100) + (int)(($g + 399) / 400);
+    $gml  = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    for ($i = 1; $i < $gm; $i++) $gdn += $gml[$i];
+    if ($gm > 2 && (($gy % 4 === 0 && $gy % 100 !== 0) || $gy % 400 === 0)) $gdn++;
+    $gdn += $gd - 1;
+    $jdn  = $gdn - 79;
+    $jnp  = (int)($jdn / 12053); $jdn %= 12053;
+    $jy   = 979 + 33 * $jnp + 4 * (int)($jdn / 1461); $jdn %= 1461;
+    if ($jdn >= 366) { $jy += (int)(($jdn - 1) / 365); $jdn = ($jdn - 1) % 365; }
+    for ($i = 0; $i < 11 && $jdn >= $jdim[$i]; $i++) $jdn -= $jdim[$i];
+    return [$jy, $i + 1, $jdn + 1];
+}
+
+function jdate(string $format = 'Y/m/d', ?int $ts = null): string {
+    if ($ts === null) $ts = time();
+    [$jy, $jm, $jd] = gregorian_to_jalali((int)date('Y', $ts), (int)date('n', $ts), (int)date('j', $ts));
+    $out = '';
+    for ($i = 0; $i < strlen($format); $i++) {
+        $out .= match($format[$i]) {
+            'Y' => str_pad((string)$jy, 4, '0', STR_PAD_LEFT),
+            'y' => substr((string)$jy, -2),
+            'm' => str_pad((string)$jm, 2, '0', STR_PAD_LEFT),
+            'n' => (string)$jm,
+            'd' => str_pad((string)$jd, 2, '0', STR_PAD_LEFT),
+            'j' => (string)$jd,
+            default => $format[$i],
+        };
+    }
+    return $out;
+}
+
 function db_query(PDO $pdo, string $sql, array $params = []): PDOStatement
 {
     $stmt = $pdo->prepare($sql);
