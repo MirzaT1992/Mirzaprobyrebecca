@@ -18,6 +18,22 @@ $initials = mb_strtoupper(mb_substr($currentUser, 0, 1, 'UTF-8'), 'UTF-8');
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title><?= $textbotlang['panel']['layoutBrandName'] ?></title>
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* ─── Stat-card icon badge ─── */
+    .stat-ico{display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:var(--acs);color:var(--ac);flex-shrink:0;transition:transform 260ms cubic-bezier(.34,1.56,.64,1)}
+    .stat.ok   .stat-ico{background:var(--oks);color:var(--ok)}
+    .stat.warn .stat-ico{background:var(--warns);color:var(--warn)}
+    .stat.no   .stat-ico{background:var(--nos);color:var(--no)}
+    .stat:hover .stat-ico{transform:scale(1.15) rotate(-8deg)}
+    /* ─── Welcome bar ─── */
+    .welcome-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:22px;padding:18px 22px;background:var(--sf);border:1px solid var(--bd);border-radius:12px;position:relative;overflow:hidden}
+    .welcome-bar::before{content:"";position:absolute;inset:0;background:var(--grad);opacity:.06;pointer-events:none}
+    @media(max-width:540px){.welcome-bar{flex-direction:column;align-items:flex-start;gap:10px;padding:14px 16px}}
+    /* ─── Stat row label+icon row ─── */
+    .stat-top{display:flex;align-items:center;justify-content:space-between;gap:6px}
+    /* ─── Panel monitor table URL column ─── */
+    .url-cell{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr;text-align:left}
+  </style>
   <script>
     (function () {
       var t = localStorage.getItem('panel-theme') || 'navy';
