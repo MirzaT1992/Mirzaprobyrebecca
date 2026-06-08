@@ -4,17 +4,21 @@ require_once '../function.php';
 $textbotlang = languagechange();
 require_once '../botapi.php';
 
-$reportbackup = select("topicid", "idreport", "report", "backupfile", "select")['idreport'];
-$destination  = getcwd();
-$setting      = select("setting", "*");
-$sourcefir    = dirname($destination);
+// Use __DIR__ (directory of this file) so paths are correct regardless
+// of the cron process working directory (which is often /root or /).
+$destination = __DIR__;
+$sourcefir   = dirname(__DIR__);
+
+$setting = select("setting", "*");
+
+$reportbackupRow = select("topicid", "idreport", "report", "backupfile", "select");
+$reportbackup    = is_array($reportbackupRow) ? ($reportbackupRow['idreport'] ?? '0') : '0';
 
 // ─── Sub-bot file backups ───────────────────────────────────────────────────
 $botlist = select("botsaz", "*", null, null, "fetchAll");
 if ($botlist) {
     foreach ($botlist as $bot) {
         $folderName = $bot['id_user'] . $bot['username'];
-        // Unique zip name per bot to avoid overwrites in concurrent runs
         $zipFile   = $destination . '/bot_' . $bot['id_user'] . '_backup.zip';
         $dataDir   = $sourcefir . '/vpnbot/' . $folderName . '/data';
         $prodJson  = $sourcefir . '/vpnbot/' . $folderName . '/product.json';
@@ -42,19 +46,40 @@ if ($botlist) {
 }
 
 // ─── Database + config backup ───────────────────────────────────────────────
-$dbhost = empty($dbhost) ? 'localhost' : $dbhost;
-$today  = date('Y-m-d');
+$dbhost  = (isset($dbhost) && $dbhost !== '' && $dbhost !== '{database_url}') ? $dbhost : 'localhost';
+$today   = date('Y-m-d');
 $sqlFile = $destination . '/backup_' . $today . '.sql';
 $zipFile = $destination . '/backup_' . $today . '.zip';
 
+// Resolve mysqldump binary — use full path so cron's restricted PATH is not an issue
+$mysqldump = '';
+foreach (['/usr/bin/mysqldump', '/usr/local/bin/mysqldump', '/bin/mysqldump'] as $candidate) {
+    if (file_exists($candidate) && is_executable($candidate)) {
+        $mysqldump = $candidate;
+        break;
+    }
+}
+if ($mysqldump === '') {
+    $mysqldump = trim((string) shell_exec('which mysqldump 2>/dev/null'));
+}
+if ($mysqldump === '') {
+    telegram('sendmessage', [
+        'chat_id'           => $setting['Channel_Report'],
+        'message_thread_id' => $reportbackup,
+        'text'              => '⚠️ mysqldump not found on this server.',
+    ]);
+    exit;
+}
+
 // Detect MariaDB vs MySQL and pick the correct SSL silence flag
-$dumpVersion = (string) shell_exec('mysqldump --version 2>&1');
+$dumpVersion = (string) shell_exec($mysqldump . ' --version 2>&1');
 $sslFlag = (stripos($dumpVersion, 'mariadb') !== false) ? '--skip-ssl' : '--ssl-mode=DISABLED';
 
-// Use MYSQL_PWD env var so the password never appears in the process list
+// Use MYSQL_PWD env var — password never appears in the process list or ps output
 putenv('MYSQL_PWD=' . $passworddb);
 $command = sprintf(
-    'mysqldump -h %s -u %s --no-tablespaces %s %s > %s 2>&1',
+    '%s -h %s -u %s --no-tablespaces %s %s > %s 2>/dev/null',
+    escapeshellarg($mysqldump),
     escapeshellarg($dbhost),
     escapeshellarg($usernamedb),
     $sslFlag,
@@ -62,23 +87,23 @@ $command = sprintf(
     escapeshellarg($sqlFile)
 );
 
-$output     = [];
-$return_var = 0;
-exec($command, $output, $return_var);
+$dumpOutput = [];
+$dumpExit   = 0;
+exec($command, $dumpOutput, $dumpExit);
 putenv('MYSQL_PWD=');  // clear immediately after use
 
-$sqlOk = ($return_var === 0 && file_exists($sqlFile) && filesize($sqlFile) > 0);
+$sqlOk = ($dumpExit === 0 && file_exists($sqlFile) && filesize($sqlFile) > 0);
 
 if (!$sqlOk) {
     telegram('sendmessage', [
         'chat_id'           => $setting['Channel_Report'],
         'message_thread_id' => $reportbackup,
-        'text'              => $textbotlang['keyboard']['backupError'],
+        'text'              => $textbotlang['keyboard']['backupError'] ?? '⚠️ Backup failed: mysqldump error.',
     ]);
 } else {
     // Pack SQL dump + config.php into one zip (config has DB creds needed for restore)
-    $configFile  = $sourcefir . '/config.php';
-    $zipTargets  = escapeshellarg($sqlFile);
+    $configFile = $sourcefir . '/config.php';
+    $zipTargets = escapeshellarg($sqlFile);
     if (file_exists($configFile)) {
         $zipTargets .= ' ' . escapeshellarg($configFile);
     }
@@ -92,7 +117,7 @@ if (!$sqlOk) {
         'chat_id'           => $setting['Channel_Report'],
         'message_thread_id' => $reportbackup,
         'document'          => new CURLFile($sendFile),
-        'caption'           => $textbotlang['hardcoded']['backupDatabaseCaption'],
+        'caption'           => $textbotlang['hardcoded']['backupDatabaseCaption'] ?? '🗄 Database Backup',
     ]);
 
     if (file_exists($sqlFile)) unlink($sqlFile);
