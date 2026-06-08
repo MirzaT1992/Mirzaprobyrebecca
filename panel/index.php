@@ -309,42 +309,6 @@ function fmtS(int $v): string {
 </div>
 
 <!-- ══════════════════════════════════════════════
-     Quick Actions
-═══════════════════════════════════════════════ -->
-<div class="card fade-up" style="margin-bottom:20px">
-  <div class="card-head">
-    <div class="card-title" style="display:flex;align-items:center;gap:8px">
-      <?= icon('dashboard', 15) ?>&nbsp;دسترسی سریع
-    </div>
-  </div>
-  <div class="card-body">
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <a href="invoice.php" class="btn btn-ghost">
-        <?= icon('invoice', 14) ?>&nbsp;سفارشات
-      </a>
-      <a href="users.php" class="btn btn-ghost">
-        <?= icon('users', 14) ?>&nbsp;کاربران
-      </a>
-      <a href="payment.php" class="btn btn-ghost" <?= $pendingPay > 0 ? 'style="border-color:rgba(248,113,113,.5);color:var(--no)"' : '' ?>>
-        <?= icon('card', 14) ?>&nbsp;تراکنش‌ها<?php if ($pendingPay > 0): ?>&nbsp;<span class="tag tag-no" style="padding:1px 6px;font-size:.62rem;border-radius:99px"><?= $pendingPay ?></span><?php endif; ?>
-      </a>
-      <a href="service.php" class="btn btn-ghost">
-        <?= icon('server', 14) ?>&nbsp;سرویس‌ها
-      </a>
-      <a href="product.php" class="btn btn-ghost">
-        <?= icon('package', 14) ?>&nbsp;محصولات
-      </a>
-      <a href="keyboard.php" class="btn btn-ghost">
-        <?= icon('menu', 14) ?>&nbsp;چیدمان
-      </a>
-      <a href="settings.php" class="btn btn-ghost">
-        <?= icon('settings', 14) ?>&nbsp;تنظیمات
-      </a>
-    </div>
-  </div>
-</div>
-
-<!-- ══════════════════════════════════════════════
      Panel Monitoring
 ═══════════════════════════════════════════════ -->
 <?php if (!empty($panelsList)): ?>
