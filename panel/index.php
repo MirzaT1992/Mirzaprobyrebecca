@@ -110,12 +110,13 @@ function fmtS(int $v): string {
   (function() {
     var el = document.getElementById('dash-clock');
     if (!el) return;
-    setInterval(function() {
-      var d = new Date();
-      var h = String(d.getHours()).padStart(2,'0');
-      var m = String(d.getMinutes()).padStart(2,'0');
-      el.textContent = h + ':' + m;
-    }, 10000);
+    var fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Tehran',
+      hour: '2-digit', minute: '2-digit', hour12: false
+    });
+    function tick() { el.textContent = fmt.format(new Date()); }
+    tick();
+    setInterval(tick, 10000);
   }());
 </script>
 
