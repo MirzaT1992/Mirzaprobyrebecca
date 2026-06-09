@@ -601,7 +601,6 @@ class ManagePanel
             }
             $linksub = $Get_Data_Panel['linksubx'] . "/{$user_data['client']['subId']}";
             $used_data_3xui['obj']['lastOnline'] = $used_data_3xui['obj']['lastOnline'] == 0 ? "offline" : date('Y-m-d H:i:s', $used_data_3xui['obj']['lastOnline'] / 1000);
-            $linksub = $Get_Data_Panel['linksubx'] . "/{$user_data['subId']}";
             $links_user = outputlink($Get_Data_Panel['linksubx'] . "/{$user_data['subId']}");
             if (isBase64($links_user))
                 $links_user = base64_decode($links_user);
