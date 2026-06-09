@@ -40,6 +40,8 @@ _step_eta() {
         "Installing base tools"*)            echo 25 ;;
         "Installing PHP 8.2"*)               echo 30 ;;
         "Installing web stack"*)             echo 90 ;;
+        "Repairing broken MySQL"*)           echo 90 ;;
+        "Re-installing web stack"*)          echo 90 ;;
         "Installing phpMyAdmin"*)            echo 40 ;;
         "Installing extra modules"*)         echo 25 ;;
         "Enabling & starting services"*)     echo 8  ;;
@@ -316,7 +318,8 @@ mark_phase() {
 
 # has_resumable_state -> 0 if an unfinished install is on disk
 has_resumable_state() {
-    [ -f "$STATE_FILE" ] && grep -q '^PHASE:' "$STATE_FILE" 2>/dev/null \
+    [ -f "$STATE_FILE" ] || return 1
+    { grep -q '^PHASE:' "$STATE_FILE" 2>/dev/null || grep -q '^STARTED=' "$STATE_FILE" 2>/dev/null; } \
         && ! phase_done COMPLETE
 }
 
@@ -380,6 +383,61 @@ EOF
     return 0
 }
 export -f setup_mysql_root
+
+# True if a package is installed and configured.
+_pkg_installed() { dpkg-query -W -f='${Status}' "$1" 2>/dev/null | grep -q 'install ok installed'; }
+
+# Refuse to install on a server that already has conflicting software.
+# Only runs on a brand-new install (never on resume / Mirza's own partial state).
+precheck_fresh_server() {
+    local found=()
+    _pkg_installed apache2 && found+=("apache2 (web server)")
+    { _pkg_installed nginx || _pkg_installed nginx-core || _pkg_installed nginx-full; } && found+=("nginx (web server)")
+    { _pkg_installed mysql-server || _pkg_installed mysql-server-8.0; } && found+=("mysql-server")
+    { _pkg_installed mariadb-server || _pkg_installed mariadb-server-10.6; } && found+=("mariadb-server")
+    _pkg_installed phpmyadmin && found+=("phpMyAdmin")
+    # Known VPN panels
+    { [ -d /opt/marzban ] || [ -d /var/lib/marzban ]; } && found+=("Marzban panel")
+    { [ -d /etc/x-ui ] || [ -d /usr/local/x-ui ]; } && found+=("x-ui / 3x-ui panel")
+    { [ -d /opt/hiddify-manager ] || [ -d /opt/hiddify-config ]; } && found+=("Hiddify panel")
+
+    if [ ${#found[@]} -gt 0 ]; then
+        clear
+        banner
+        _sec "Server is not clean"
+        printf "    ${C_BAD}●${CR} ${C_BAD}This installer needs a fresh server with no other software installed.${CR}\n"
+        printf "    ${C_DIM}Detected conflicting components:${CR}\n"
+        local f
+        for f in "${found[@]}"; do printf "      ${C_WARN}-${CR} ${C_TXT}%s${CR}\n" "$f"; done
+        echo ""
+        printf "    ${C_TXT}Use a clean Ubuntu 22.04/24.04 server (no web server, database, or panel)${CR}\n"
+        printf "    ${C_TXT}or reinstall the OS, then run the installer again.${CR}\n"
+        return 1
+    fi
+    return 0
+}
+
+# Repair a broken / half-configured MySQL left by an interrupted apt run.
+# Safe to wipe data here: this only runs during a fresh install, before any
+# Mirza database is created (the fresh-server precheck guarantees no real DB).
+repair_mysql() {
+    export DEBIAN_FRONTEND=noninteractive
+    systemctl stop mysql 2>/dev/null
+    # 1) Gentle fix first
+    dpkg --configure -a >/dev/null 2>&1
+    apt-get install -f -y >/dev/null 2>&1
+    if dpkg-query -W -f='${Status}' mysql-server-8.0 2>/dev/null | grep -q 'install ok installed'; then
+        return 0
+    fi
+    # 2) Hard reset: purge MySQL and wipe its (empty) data dir, then reinstall fresh
+    apt-get purge -y 'mysql-server*' 'mysql-client*' 'mysql-community*' mysql-common >/dev/null 2>&1
+    apt-get autoremove -y >/dev/null 2>&1
+    rm -rf /var/lib/mysql /var/log/mysql /etc/mysql
+    dpkg --configure -a >/dev/null 2>&1
+    apt-get update >/dev/null 2>&1
+    return 0
+}
+export -f repair_mysql
 
 # install_pause "<where>" -> save progress and exit WITHOUT rolling back.
 # Re-running `mirza install` will pick up from the last completed phase.
@@ -1020,7 +1078,7 @@ function install_bot() {
     BOT_DIR="/var/www/html/mirzaprobotconfig"
 
     # ── Guard: only block when a PREVIOUS install fully COMPLETED ──
-    if phase_done COMPLETE || { [ -f "$CONFIG_FILE_DEFAULT" ] && ! has_resumable_state; }; then
+    if [ -f "$CONFIG_FILE_DEFAULT" ] && ! has_resumable_state; then
         clear
         banner
         _sec "Install blocked"
@@ -1042,13 +1100,27 @@ function install_bot() {
         return 0
     fi
 
+    # ── Fresh-server requirement (only on a brand-new install) ──
+    if ! has_resumable_state && [ ! -f "$CONFIG_FILE_DEFAULT" ]; then
+        if ! precheck_fresh_server; then
+            echo ""
+            printf "  ${C_PROMPT}❯${CR} Press Enter to return to the menu... "
+            read -r _
+            show_menu
+            return 1
+        fi
+    fi
+
     # ── Resume detector: an unfinished install is on disk ──
     if has_resumable_state; then
         clear
         banner
         _sec "Resume install"
+        local _last
+        _last="$(grep '^PHASE:' "$STATE_FILE" 2>/dev/null | tail -1 | cut -d: -f2)"
+        [ -z "$_last" ] && _last="dependencies"
         printf "    ${C_WARN}●${CR} ${C_WARN}An unfinished installation was found.${CR}\n"
-        printf "    ${C_DIM}Last completed step:${CR} ${C_KEY}%s${CR}\n" "$(grep '^PHASE:' "$STATE_FILE" 2>/dev/null | tail -1 | cut -d: -f2)"
+        printf "    ${C_DIM}Last completed step:${CR} ${C_KEY}%s${CR}\n" "$_last"
         echo ""
         printf "    ${C_KEY}[1]${CR} ${C_TXT}Resume from where it stopped${CR}\n"
         printf "    ${C_KEY}[2]${CR} ${C_TXT}Start fresh from the beginning${CR}\n"
@@ -1066,6 +1138,7 @@ function install_bot() {
         esac
     fi
     state_init
+    state_set STARTED 1   # mark install as in-progress -> future re-runs resume (skip fresh-check)
     plan_eta   # count pending steps + estimate total time left
 
     # ── Pre-flight checks (network/DNS/disk/ram/ports) ──
@@ -1125,9 +1198,15 @@ function install_bot() {
             "DEBIAN_FRONTEND=noninteractive apt install -y php8.2 php8.2-fpm php8.2-mysql" \
             || { show_step_error; install_pause "Installing PHP 8.2"; }
 
-        run_step "Installing web stack (Apache, MySQL, PHP modules)" \
-            "DEBIAN_FRONTEND=noninteractive apt install -y lamp-server^ libapache2-mod-php mysql-server apache2 php-mbstring php-zip php-gd php-json php-curl" \
-            || { show_step_error; install_pause "Installing web stack"; }
+        WEBSTACK_CMD="DEBIAN_FRONTEND=noninteractive apt install -y lamp-server^ libapache2-mod-php mysql-server apache2 php-mbstring php-zip php-gd php-json php-curl"
+        if ! run_step "Installing web stack (Apache, MySQL, PHP modules)" "$WEBSTACK_CMD"; then
+            # Most common cause: a broken/half-configured MySQL from an interrupted run.
+            # Safe to repair here because the fresh-server check ran and no DB exists yet.
+            run_step "Repairing broken MySQL installation" "repair_mysql" \
+                || { show_step_error; install_pause "Repairing MySQL"; }
+            run_step "Re-installing web stack" "$WEBSTACK_CMD" \
+                || { show_step_error; install_pause "Installing web stack"; }
+        fi
 
         echo 'phpmyadmin phpmyadmin/dbconfig-install boolean true' | sudo debconf-set-selections
         echo 'phpmyadmin phpmyadmin/app-password-confirm password mirzahipass' | sudo debconf-set-selections
@@ -1793,13 +1872,14 @@ function remove_bot() {
     echo -e "\e[33mRemoving Apache and PHP configurations...\033[0m" | tee -a "$LOG_FILE"
     sudo a2disconf phpmyadmin.conf &>/dev/null
     sudo rm -f /etc/apache2/conf-available/phpmyadmin.conf
-    sudo systemctl restart apache2
     echo -e "\e[33mRemoving additional packages...\033[0m" | tee -a "$LOG_FILE"
     sudo apt-get remove -y php-soap php-ssh2 libssh2-1-dev libssh2-1 \
         && echo -e "\e[92mRemoved additional PHP packages.\033[0m" | tee -a "$LOG_FILE" || echo -e "\e[93mSome additional PHP packages may not be installed.\033[0m" | tee -a "$LOG_FILE"
     echo -e "\e[33mResetting firewall rules (except SSL)...\033[0m" | tee -a "$LOG_FILE"
-    sudo ufw delete allow 'Apache'
-    sudo ufw reload
+    sudo ufw delete allow 'Apache' 2>/dev/null
+    sudo ufw reload 2>/dev/null
+    # Clear Mirza install state so a fresh install is allowed afterwards
+    sudo rm -rf /root/confmirza
     echo -e "\e[92mMirza Bot, MySQL, and their dependencies have been completely removed.\033[0m" | tee -a "$LOG_FILE"
 }
 
