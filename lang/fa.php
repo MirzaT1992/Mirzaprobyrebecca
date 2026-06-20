@@ -1544,7 +1544,7 @@ f,n.n2',
 🔰 مجموع فروش یک ماه گذشته : %s تومان
 
 ',
-                        'ask_send_api' => '⚙️ api سایت plisio.net.io را ارسال نمایید
+                        'ask_send_api' => '⚙️ api سایت plisio.net را ارسال نمایید
         
         api plisio :%s',
                         'ask_enter_api' => '💳 API NOWPAMENT خود را دریافت و در این قسمت وارد کنید

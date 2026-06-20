@@ -1543,7 +1543,7 @@ f,n.n2',
 
 
 ',
-                        'ask_send_api' => '⚙️ Отправьте API сайта plisio.net.io
+                        'ask_send_api' => '⚙️ Отправьте API сайта plisio.net
         
         plisio api :%s',
                         'ask_enter_api' => '💳 Получите ваш API NOWPAYMENT и введите его в этом разделе

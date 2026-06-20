@@ -1543,7 +1543,7 @@ User balance after reduction: %s',
 
 
 ',
-                        'ask_send_api' => '⚙️ Send the API of the plisio.net.io site
+                        'ask_send_api' => '⚙️ Send the API of the plisio.net site
         
         plisio api :%s',
                         'ask_enter_api' => '💳 Obtain your NOWPAYMENT API and enter it in this section

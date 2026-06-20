@@ -1543,7 +1543,7 @@ f,n.n2',
 
 
 ',
-                        'ask_send_api' => '⚙️ 请发送 plisio.net.io 网站的 API
+                        'ask_send_api' => '⚙️ 请发送 plisio.net 网站的 API
         
         plisio api :%s',
                         'ask_enter_api' => '💳 获取您的 NOWPAYMENT API 并在此部分输入
