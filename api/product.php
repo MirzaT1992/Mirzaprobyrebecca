@@ -231,8 +231,10 @@ switch ($data['actions'] ?? '') {
         if (!empty($missing_fields)) {
             sendJsonResponse(false, "Missing required fields: " . implode(', ', $missing_fields), []);
         }
-        $prodcut = select("product", "*", "name_product", $data['name'], "count");
-        if ($prodcut != 0) {
+        $agent = empty($data['agent']) ? "f" : $data['agent'];
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM product WHERE name_product = ? AND agent = ?");
+        $stmt->execute([$data['name'], $agent]);
+        if ((int) $stmt->fetchColumn() !== 0) {
             sendJsonResponse(false, "product name exits", [], 200);
         }
         $panel = select("marzban_panel", "*", "code_panel", $data['location'], "select");
@@ -292,8 +294,10 @@ switch ($data['actions'] ?? '') {
             sendJsonResponse(false, "product not found", [], 200);
         }
         if (isset($data['name']) && $product['name_product'] != $data['name']) {
-            $product_check = select("product", "*", "name_product", $data['name'], "count");
-            if ($product_check != 0)
+            $editAgent = isset($data['agent']) ? $data['agent'] : $product['agent'];
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM product WHERE name_product = ? AND agent = ? AND id != ?");
+            $stmt->execute([$data['name'], $editAgent, $data['id']]);
+            if ((int) $stmt->fetchColumn() !== 0)
                 sendJsonResponse(false, "product name exits", [], 200);
             update("invoice", "name_product", $data['name'], "name_product", $product['name_product']);
         }

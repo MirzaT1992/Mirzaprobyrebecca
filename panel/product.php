@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add')
     header('Location: product.php');
     exit;
   }
-  if (db_count($pdo, "SELECT COUNT(*) FROM product WHERE name_product = ?", [$name])) {
+  if (db_count($pdo, "SELECT COUNT(*) FROM product WHERE name_product = ? AND agent = ?", [$name, $_POST['agent_product'] ?? 'f'])) {
     flash('error', $textbotlang['panel']['productNameExists']);
     header('Location: product.php');
     exit;
@@ -36,6 +36,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'edit'
   $pid = (int) ($_POST['edit_id'] ?? 0);
   $name = trim($_POST['name_product'] ?? '');
   if ($pid && $name !== '') {
+    $agent = $_POST['agent_product'] ?? 'f';
+    if (db_count($pdo, "SELECT COUNT(*) FROM product WHERE name_product = ? AND agent = ? AND id != ?", [$name, $agent, $pid])) {
+      flash('error', $textbotlang['panel']['productNameExists']);
+      header('Location: product.php');
+      exit;
+    }
     try {
       db_query(
         $pdo,

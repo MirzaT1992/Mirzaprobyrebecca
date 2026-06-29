@@ -2527,10 +2527,6 @@ elseif ($datain == "systemsms") {
         sendmessage($from_id, $textbotlang['Admin']['adminphp']['err_name_must'], $backadmin, 'HTML');
         return;
     }
-    if (in_array($text, $name_product)) {
-        sendmessage($from_id, sprintf($textbotlang['Admin']['adminphp']['err_name_1'], $text), $backadmin, 'HTML');
-        return;
-    }
     savedata("clear", "name_product", $text);
     sendmessage($from_id, $textbotlang['Admin']['agent']['setAgentProduct'], $backadmin, 'HTML');
     step('get_agent', $from_id);
@@ -2538,6 +2534,13 @@ elseif ($datain == "systemsms") {
     $agent = ["n", "f", "n2"];
     if (!in_array($text, $agent)) {
         sendmessage($from_id, $textbotlang['Admin']['agent']['invalidValue'], $backadmin, 'HTML');
+        return;
+    }
+    $userdata = json_decode($user['Processing_value'], true);
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM product WHERE name_product = ? AND agent = ?");
+    $stmt->execute([$userdata['name_product'] ?? '', $text]);
+    if ((int) $stmt->fetchColumn() !== 0) {
+        sendmessage($from_id, sprintf($textbotlang['Admin']['adminphp']['err_name_1'], $userdata['name_product'] ?? ''), $backadmin, 'HTML');
         return;
     }
     savedata("save", "agent", $text);
@@ -2910,11 +2913,13 @@ elseif ($datain == "systemsms") {
         sendmessage($from_id, $textbotlang['Admin']['adminphp']['err_name_must'], $backadmin, 'HTML');
         return;
     }
-    if (in_array($text, $name_product)) {
+    $panel = select("marzban_panel", "*", "code_panel", $user['Processing_value_one'], "select");
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM product WHERE name_product = ? AND agent = ? AND id != ?");
+    $stmt->execute([$text, $user['Processing_value_tow'], $user['Processing_value']]);
+    if ((int) $stmt->fetchColumn() !== 0) {
         sendmessage($from_id, sprintf($textbotlang['Admin']['adminphp']['err_name_2'], $text), $backadmin, 'HTML');
         return;
     }
-    $panel = select("marzban_panel", "*", "code_panel", $user['Processing_value_one'], "select");
     $stmt = $pdo->prepare("UPDATE product SET name_product = :name_products WHERE id = :name_product AND (Location = :Location OR Location = '/all') AND agent = :agent");
     $stmt->bindParam(':name_products', $text);
     $stmt->bindParam(':name_product', $user['Processing_value']);
