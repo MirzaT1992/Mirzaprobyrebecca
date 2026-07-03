@@ -526,20 +526,52 @@ function generateUUID()
 
     return $uuid;
 }
+
 function rate_arze()
 {
     $arze_rate = [];
-    $requests_tron = json_decode(file_get_contents('https://api.diadata.org/v1/assetQuotation/Tron/0x0000000000000000000000000000000000000000'), true);
-    $html_read = file_get_contents("https://www.bon-bast.com/");
-    preg_match('/<span>\s*([\d,]+)\s*<\/span>/', $html_read, $matches);
-    if (!empty($matches[1])) {
-        $requestsusd = str_replace(',', '', $matches[1]);
+
+    $requests_tron = json_decode(
+        file_get_contents('https://api.diadata.org/v1/assetQuotation/Tron/0x0000000000000000000000000000000000000000'),
+        true
+    );
+
+    // main way: Bonbast_EX
+    $usd = null;
+
+    $html = @file_get_contents('https://t.me/s/Bonbast_EX');
+    if ($html !== false) {
+        preg_match_all('/🔹دلار:\s*([\d,]+)\s*تومان/', $html, $matches);
+        if (!empty($matches[1])) {
+            $last = end($matches[1]);
+            $usd = intval(str_replace(',', '', $last));
+        }
     }
-    $arze_rate['USD'] = intval($requestsusd);
+
+    // Fallback: Tronado API
+    if (empty($usd)) {
+        $context = stream_context_create([
+            'http' => [
+                'method'  => 'POST',
+                'header'  => 'Content-Type: application/json',
+                'content' => json_encode([]),
+            ]
+        ]);
+        $response = @file_get_contents('https://bot.tronado.cloud/Toman/GetPriceToToman', false, $context);
+        if ($response !== false) {
+           $usd_data = json_decode($response, true);
+            if (!empty($usd_data['DollarPrice'])) {
+                $usd = intval($usd_data['DollarPrice']);
+            }
+        }
+    }
+
+    $arze_rate['USD'] = $usd ?? 0;
     $arze_rate['TRX'] = intval($requests_tron['Price'] * $arze_rate['USD']);
 
     return $arze_rate;
 }
+
 function updatePaymentMessageId($response, $orderId)
 {
     if (!is_array($response)) {
@@ -646,7 +678,8 @@ function trnado($order_id, $price)
         "PaymentID" => $order_id,
         "WalletAddress" => $walletaddress,
         "TronAmount" => $price,
-        "CallbackUrl" => "https://" . $domainhosts . "/payment/tronado.php"
+        "CallbackUrl" => "https://" . $domainhosts . "/payment/tronado.php",
+	"wageFromBusinessPercentage" => 100
     );
     $datasend = json_encode($data);
     curl_setopt_array($curl, array(
@@ -1927,3 +1960,6 @@ function parseConfigs($input)
 
     return $configs;
 }
+
+
+/* TETRAMINATOR */ require_once __DIR__ . '/payment/tetraminator_lib.php';
