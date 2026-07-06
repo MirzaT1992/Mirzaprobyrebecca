@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🤖 Mirza Bot
+# 🤖 Mirza Bot Froled
 
 ### A powerful Telegram bot for selling VPN services — with fully automated config creation.
 
