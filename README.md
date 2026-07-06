@@ -173,7 +173,7 @@ An interactive menu will appear:
 Run the same command and select **`2`**:
 
 ```bash
-curl -o install.sh -L https://raw.githubusercontent.com/mahdiMGF2/mirzabot/main/install.sh && bash install.sh
+curl -o install.sh -L https://raw.githubusercontent.com/MirzaT1992/Mirzaprobyrebecca/main/install.sh && bash install.sh
 ```
 
 ### Remove
